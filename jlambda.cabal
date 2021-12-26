@@ -6,30 +6,32 @@ cabal-version: 1.12
 
 name:           jlambda
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/jlambda#readme>
-homepage:       https://github.com/githubuser/jlambda#readme
-bug-reports:    https://github.com/githubuser/jlambda/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2021 Author name here
+description:    Command-line JSON filter and transform tool.
+homepage:       https://github.com/Sventimir/jlambda#readme
+bug-reports:    https://github.com/Sventimir/jlambda/issues
+author:         Sventimir
+maintainer:     svantimir@gmail.com
+copyright:      2022 Sventimir
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
-    ChangeLog.md
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/jlambda
+  location: https://github.com/Sventimir/jlambda
 
 library
+  exposed-modules:
+      Data.JSON
   other-modules:
       Paths_jlambda
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
+    , text
   default-language: Haskell2010
 
 executable jlambda-exe
@@ -42,6 +44,7 @@ executable jlambda-exe
   build-depends:
       base >=4.7 && <5
     , jlambda
+    , text
   default-language: Haskell2010
 
 test-suite jlambda-test
@@ -55,4 +58,5 @@ test-suite jlambda-test
   build-depends:
       base >=4.7 && <5
     , jlambda
+    , text
   default-language: Haskell2010
