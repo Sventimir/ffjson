@@ -2,7 +2,8 @@ module Data.Hash (
   Hash,
   RollingHash(..),
   hash,
-  saltedHash
+  saltedHash,
+  hashEnum
 ) where
 
 
@@ -66,6 +67,10 @@ instance Bounded Hash where
   minBound = Hash (minBound, minBound)
   maxBound = Hash (maxBound, maxBound)
 
+instance Enum Hash where
+  toEnum = fromIntegral
+  fromEnum (Hash (_, i)) = fromIntegral i
+
 instance Num Hash where
   (Hash (a, b)) + (Hash (c, d)) =
     let l = a + c
@@ -77,15 +82,6 @@ instance Num Hash where
   fromInteger i = Hash (fromInteger $ shiftR i 64, fromInteger i)
   negate (Hash (0, 0)) = Hash (0, 0)
   negate (Hash (a, b)) = Hash (maxBound - a, maxBound - b + 1)
-
-splitEvery :: Int -> [a] -> [[a]]
-splitEvery _ [] = []
-splitEvery n (x : xs) = snd $ foldl doSplit (n - 1, [[x]]) xs
-  where
-  doSplit :: (Int, [[a]]) -> a -> (Int, [[a]])
-  doSplit (count, (l : ls)) elem
-    | count > 0 = (count - 1, (elem : l) : ls)
-    | otherwise = (n - 1, [elem] : l : ls)
 
 bits :: Bits b => [Int] -> b
 bits = foldl (\w b -> w .|. bit b) zeroBits
@@ -123,44 +119,37 @@ hashEnum e = snd $ foldNatDown apply (const True) (init, defaultSeed) 32
   apply (h, acc) pos = (rotateL (xor acc h) 2, acc + rotateL h (4 * pos))
   
 
-hashString :: Text -> RollingHash
-hashString txt = RollingHash $ flip (Text.foldl' absorbChar) txt
+hashString :: Text -> Hash -> Hash
+hashString txt = flip (Text.foldl' absorbChar) txt
   where
   absorbChar :: Hash -> Char -> Hash
   absorbChar h c = h `xor` hashEnum c 
 
-hashNum :: Double -> RollingHash
-hashNum n = RollingHash $ \h ->
+hashNum :: Double -> Hash -> Hash
+hashNum n h =
   let (sig, exp) = decodeFloat n in
-  (hashEnum sig `xor` shiftL (hashEnum exp) 24)
+  hashEnum (hashEnum sig `xor` hashEnum exp)
 
 hashBool :: Bool -> Hash
-hashBool True = 1234567890098765432112345678900987654321
-hashBool False = 02468642024686420246864202468642024686420
-
-arrConst :: Hash
-arrConst = 975319753197531975319753197531975319753197531
-
-objConst :: Hash
-objConst = 564634414234564351062456000416554302416346574
+hashBool True = 0x632d8abc541004ccfe021456ecd21933
+hashBool False = 0x2def321302ffac31b6b2189c0c9b12a0
 
 hashObj :: (Text, RollingHash) -> RollingHash
 hashObj (k, RollingHash vh) =
-  let RollingHash hk = hashString k in
-  RollingHash $ \h -> rotateL (hk $ rotateR (vh h) 1) 1
+  RollingHash $ \h -> rotateL (hashString k $ rotateR (vh h) 1) 1
 
 instance JSON RollingHash where
-  str = hashString
-  num = hashNum
-  bool b = RollingHash $ \h -> rotateL (h + hashBool b) 8
-  null = RollingHash $ flip rotateL 64
-  array = concatRollingHashes (RollingHash $ (+ arrConst) . flip rotateR 28)
-  obj = concatRollingHashes (RollingHash $ (+ objConst) . flip rotateL 20) . map hashObj
+  str txt = RollingHash (flip rotateL 3 . hashString txt)
+  num dbl = RollingHash (flip rotateL 6 . hashNum dbl)
+  bool b = RollingHash (flip rotateL 9 . xor (hashBool b))
+  null = RollingHash $ flip rotateL 12
+  array = concatRollingHashes (RollingHash $ flip rotateR 15)
+  obj = concatRollingHashes (RollingHash $ flip rotateL 18) . map hashObj
 
 concatRollingHashes :: RollingHash -> [RollingHash] -> RollingHash
 concatRollingHashes = foldl concat
   where
-  concat (RollingHash f) (RollingHash g) = RollingHash (f . g)
+  concat (RollingHash f) (RollingHash g) = RollingHash (g . f)
 
 saltedHash :: Hash -> RollingHash -> Hash
 saltedHash salt (RollingHash hash) = hash salt
