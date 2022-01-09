@@ -146,6 +146,9 @@ instance JSON RollingHash where
   array = concatRollingHashes (RollingHash $ flip rotateR 15)
   obj = concatRollingHashes (RollingHash $ flip rotateL 18) . map hashObj
 
+instance Show RollingHash where
+  show = show . hash
+  
 concatRollingHashes :: RollingHash -> [RollingHash] -> RollingHash
 concatRollingHashes = foldl concat
   where

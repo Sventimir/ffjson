@@ -16,6 +16,17 @@ class JSON json where
   array :: [json] -> json
   obj :: [(Text, json)] -> json
 
+instance (JSON a, JSON b) => JSON (a, b) where
+  str txt = (str txt, str txt)
+  num dbl = (num dbl, num dbl)
+  bool bl = (bool bl, bool bl)
+  null = (Data.JSON.null, Data.JSON.null)
+  array js = let (xs, ys) = unzip js in (array xs, array ys)
+  obj kvs =
+    let (lbls, js) = unzip kvs
+        (xs, ys) = unzip js in
+    (obj (zip lbls xs), obj (zip lbls ys))
+    
 toText :: Show a => a -> Text
 toText = pack . show
 
@@ -28,6 +39,9 @@ data BuilderLayer = Layer {
 newtype TextBuilder = TextBuilder [BuilderLayer]
 
 newtype BuildJSON = BuildJSON (TextBuilder -> TextBuilder)
+
+instance Show BuildJSON where
+  show = show . buildJSON
 
 initialLayer :: BuilderLayer
 initialLayer = Layer {

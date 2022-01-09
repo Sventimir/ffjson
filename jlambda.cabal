@@ -26,6 +26,7 @@ library
   exposed-modules:
       Data.Hash
       Data.JSON
+      Parser.JSON
   other-modules:
       Paths_jlambda
   hs-source-dirs:
@@ -57,7 +58,9 @@ test-suite jlambda-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
+    , hspec
     , jlambda
     , text
   default-language: Haskell2010
