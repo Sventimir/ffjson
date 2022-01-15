@@ -36,8 +36,12 @@ genNull = return $ Wrapson null
 genBool = fmap (Wrapson . bool) chooseAny
 genNum = fmap (Wrapson . num) chooseAny
 genString = fmap (Wrapson . str . Text.pack) $ listOf chooseAny
-genArray = fmap (Wrapson . array . map fromWrapson) $ listOf arbitrary
-genObject = fmap (Wrapson . obj . map (mapSnd fromWrapson)) $ listOf keyValuePair
+genArray = do
+  s <- chooseInt (0, 10)
+  fmap (Wrapson . array . map fromWrapson) . resize s $ listOf arbitrary
+genObject = do
+  s <- chooseInt (0, 10)
+  fmap (Wrapson . obj . map (mapSnd fromWrapson)) . resize s $ listOf keyValuePair
 
 fromWrapson :: Wrapson j -> j
 fromWrapson (Wrapson j) = j
