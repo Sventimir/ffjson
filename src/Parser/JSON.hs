@@ -10,7 +10,7 @@ import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Text.Megaparsec (ParsecT, ParseErrorBundle, empty, between, anySingleBut,
-                        chunk, sepBy, parse)
+                        chunk, sepBy, parse, try)
 import Text.Megaparsec.Char (space1, char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 import Text.Megaparsec.Error (ShowErrorComponent(..))
@@ -40,7 +40,7 @@ string = lexeme $
          fmap Text.pack $ quoted . many $ anySingleBut '"'
 
 number :: (JSON j, Monad m) => Parser m j
-number = lexeme $ fmap num Lexer.float
+number = lexeme $ fmap num (try Lexer.float <|> Lexer.decimal)
 
 constants :: (JSON j, Monad m) => Parser m j
 constants = lexeme $
