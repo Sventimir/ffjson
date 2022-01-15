@@ -2,4 +2,4 @@ module Main where
 
 
 main :: IO ()
-main = putStrLn "Hello JLambda!"
+main = putStrLn "Hello ffjson!"
