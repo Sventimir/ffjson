@@ -26,6 +26,7 @@ library
   exposed-modules:
       Data.Hash
       Data.JSON
+      Data.JSON.Repr
       Parser.JSON
   other-modules:
       Paths_ffjson

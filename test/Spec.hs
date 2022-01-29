@@ -6,6 +6,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 
 import Data.JSON
+import Data.JSON.Repr
 import Data.Hash
 import Parser.JSON
 
@@ -15,8 +16,8 @@ main = hspec $ do
   describe "parse-unparse-identity" $
     it "parsing after serialisation is an identity" $
       property $ \(Wrapson json) ->
-                   let (textBuilder, rollingHash) = json in
-                   case parseJSON $ buildJSON textBuilder of
+                   let (repr, rollingHash) = json in
+                   case parseJSON $ text repr of
                      Left _ -> False
                      Right json' -> hash rollingHash == hash json'
 
