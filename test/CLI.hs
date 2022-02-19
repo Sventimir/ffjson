@@ -1,5 +1,6 @@
 module CLI ( cliTests ) where
 
+import Control.Monad.Except (throwError)
 import Test.Hspec
 import Parser.CLI
 
@@ -13,6 +14,9 @@ instance CliArgs StrArgs where
   defaults = StrArgs []
   finalize (StrArgs args) = return . StrArgs $ reverse args
   positional (StrArgs args) = return . StrArgs . (: args)
+  hyphens (StrArgs args) 1 = return $ StrArgs ("/dev/stdin" : args)
+  hyphens _ count =
+    throwError $ UserError ("Unrecognized argument: '" <> replicate count '-' <> "'!")
 
 data OptAndFloat = OptAndFloat Option Float
   deriving (Show, Eq)
@@ -25,6 +29,8 @@ instance CliArgs OptAndFloat where
   positional (OptAndFloat _ flt) "optionC" = return $ OptAndFloat OptionC flt
   positional (OptAndFloat _ flt) "optionD" = return $ OptAndFloat OptionD flt
   positional (OptAndFloat opt _) flt = return $ OptAndFloat opt (read flt)
+  hyphens _ count =
+    throwError $ UserError ("Unrecognized argument: '" <> replicate count '-' <> "'!")
 
 
 cliTests :: Spec
@@ -52,3 +58,7 @@ cliTests = do
           result <- parseArgs ["ala ma kota"]
           result `shouldBe` Right (defaults :: OptAndFloat))
         `shouldThrow` anyErrorCall
+  describe "Parse hyphen as a special argument" $ do
+    it "hyphen usually means stdin" $ do
+      result <- parseArgs ["-"]
+      result `shouldBe` Right (StrArgs ["/dev/stdin"])
