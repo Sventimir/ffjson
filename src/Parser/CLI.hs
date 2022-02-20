@@ -30,11 +30,11 @@ data Or l r = OrLeft l
 data Arg = Positional String
          | ShortFlag Char
          | LongFlag String
-         | Hyphens Int
+         | Dashes Int
 
 instance Show Arg where
   show (Positional arg) = arg
-  show (Hyphens count) = replicate count '-'
+  show (Dashes count) = replicate count '-'
   show (ShortFlag c) = ['-', c]
   show (LongFlag f) = "--" <> f
 
@@ -62,16 +62,16 @@ argParser acc (s : ss) = do
   arg <- classifyArg s
   (acc', ss') <- case arg of
     Positional p -> positional acc p <&> flip (,) ss
-    Hyphens len -> hyphens acc len <&> flip (,) ss
+    Dashes len -> hyphens acc len <&> flip (,) ss
     flag -> do
       spec <- findFlag flag flags
       parseFlag flag spec acc ss
   argParser acc' ss'
 
 classifyArg :: Monad m => String -> ExceptT CliError m Arg
-classifyArg ['-'] = return $ Hyphens 1
+classifyArg ['-'] = return $ Dashes 1
 classifyArg ('-' : '-' : flag)
-  | all (== '-') flag = return . Hyphens $ length flag + 2
+  | all (== '-') flag = return . Dashes $ length flag + 2
   | otherwise = return $ LongFlag flag
 classifyArg ('-' : flag : []) = return $ ShortFlag flag
 classifyArg flag@('-' : _) = throwError $ MalformedFlag flag
@@ -79,7 +79,7 @@ classifyArg arg = return $ Positional arg
 
 findFlag :: Monad m => Arg -> [FlagSpec m args] -> ExceptT CliError m (FlagSpec m args)
 findFlag (Positional _) _ = throwError Impossible
-findFlag (Hyphens _) _ = throwError Impossible
+findFlag (Dashes _) _ = throwError Impossible
 findFlag (ShortFlag f) [] = throwError $ UnrecognisedShort f
 findFlag (LongFlag f) [] = throwError $ UnrecognisedLong f
 findFlag flag@(ShortFlag f) (spec@(FlagSpec (OrLeft m) _ _) : specs)
