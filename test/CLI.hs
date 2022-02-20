@@ -1,6 +1,9 @@
 module CLI ( cliTests ) where
 
-import Control.Monad.Except (throwError)
+import Control.Monad.Except (MonadIO, ExceptT, liftIO, throwError)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Test.Hspec
 import Test.Hspec
 import Parser.CLI
 
@@ -17,6 +20,7 @@ instance CliArgs StrArgs where
   hyphens (StrArgs args) 1 = return $ StrArgs ("/dev/stdin" : args)
   hyphens _ count =
     throwError $ UserError ("Unrecognized argument: '" <> replicate count '-' <> "'!")
+  flags = []
 
 data OptAndFloat = OptAndFloat Option Float
   deriving (Show, Eq)
@@ -31,34 +35,54 @@ instance CliArgs OptAndFloat where
   positional (OptAndFloat opt _) flt = return $ OptAndFloat opt (read flt)
   hyphens _ count =
     throwError $ UserError ("Unrecognized argument: '" <> replicate count '-' <> "'!")
+  flags = []
+
+newtype ArgMap = ArgMap (Map String String)
+  deriving (Show, Eq)
+
+argMap :: [(String, String)] -> Either CliError ArgMap
+argMap = Right . ArgMap . Map.fromList
+
+insertArg :: Monad m => String -> String -> ArgMap -> ExceptT CliError m ArgMap
+insertArg key val (ArgMap m) = return . ArgMap $ Map.insert key val m
+
+instance CliArgs ArgMap where
+  defaults = ArgMap Map.empty
+  finalize = return
+  positional _ = throwError . UnexpectedPositional
+  hyphens _ count = throwError . UnexpectedPositional $ replicate count '-'
+  flags = [FlagSpec (OrBoth 'r' "redFlag") FinalizeArg (insertArg "redFlag" "")]
 
 
 cliTests :: Spec
-cliTests = do
+cliTests = parallel $ do
   describe "Parse no options at all" $
     it "no options return default configuration" $ do
-      result <- parseArgs []
-      result `shouldBe` Right (StrArgs [])
+      parseArgs [] `shouldReturn` Right (StrArgs [])
   describe "Parse positional String arguments." $ do
     it "a single word" $ do
-      result <- parseArgs ["word"]
-      result `shouldBe` Right (StrArgs ["word"])
+      parseArgs ["word"]`shouldReturn` Right (StrArgs ["word"])
     it "two words are separate arguments" $ do
-      result <- parseArgs ["first", "second"]
-      result `shouldBe` Right (StrArgs ["first", "second"])
+      parseArgs ["first", "second"]
+        `shouldReturn` Right (StrArgs ["first", "second"])
   describe "Parse positional arguments of different types." $ do
     it "pass an enum and a number" $ do
-      result <- parseArgs ["optionA", "3.1415"]
-      result `shouldBe` Right (OptAndFloat OptionA 3.1415)
+      parseArgs ["optionA", "3.1415"]
+        `shouldReturn` Right (OptAndFloat OptionA 3.1415)
     it "order of arguments does not matter here" $ do
-      result <- parseArgs ["3.1415", "optionA"]
-      result `shouldBe` Right (OptAndFloat OptionA 3.1415)
+      parseArgs ["3.1415", "optionA"]
+        `shouldReturn` Right (OptAndFloat OptionA 3.1415)
     it "exceptions raised by client code are not caught" $
       (do
-          result <- parseArgs ["ala ma kota"]
-          result `shouldBe` Right (defaults :: OptAndFloat))
+          parseArgs ["ala ma kota"]
+            `shouldReturn` Right (defaults :: OptAndFloat))
         `shouldThrow` anyErrorCall
   describe "Parse hyphen as a special argument" $ do
-    it "hyphen usually means stdin" $ do
-      result <- parseArgs ["-"]
-      result `shouldBe` Right (StrArgs ["/dev/stdin"])
+    it "hyphen is interpreted as stdin" $ do
+      parseArgs ["-"] `shouldReturn` Right (StrArgs ["/dev/stdin"])
+  describe "Test parsing named arguments" $ do
+    it "pass no arguments at all" $ do
+      parseArgs [] `shouldReturn` Right (defaults :: ArgMap)
+    it "Test a single short flag with no arguments" $
+      parseArgs ["-r"] `shouldReturn` argMap [("redFlag", "")]
+

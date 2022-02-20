@@ -67,6 +67,7 @@ test-suite ffjson-test
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , containers
     , ffjson
     , hspec
     , megaparsec
