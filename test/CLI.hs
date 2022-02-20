@@ -52,7 +52,8 @@ instance CliArgs ArgMap where
   positional _ = throwError . UnexpectedPositional
   hyphens _ count = throwError . UnexpectedPositional $ replicate count '-'
   flags = [
-      FlagSpec (OrBoth 'r' "redFlag") FinalizeArg (insertArg "redFlag" ""),
+      FlagSpec (OrBoth 'w' "write") FinalizeArg (insertArg "write" ""),
+      FlagSpec (OrBoth 'r' "read") FinalizeArg (insertArg "read" ""),
       FlagSpec (OrBoth 'o' "output") (ConsumeArg FinalizeArg) (insertArg "output"),
       FlagSpec
         (OrRight "fromTo")
@@ -84,31 +85,46 @@ cliTests = parallel $ do
           parseArgs ["ala ma kota"]
             `shouldReturn` Right (defaults :: OptAndFloat))
         `shouldThrow` anyErrorCall
-  describe "Parse hyphen as a special argument" $ do
-    it "hyphen is interpreted as stdin" $ do
+  describe "Parse hyphen as a special argument." $ do
+    it "hyphen is interpreted as stdin." $ do
       parseArgs ["-"] `shouldReturn` Right (StrArgs ["/dev/stdin"])
-  describe "Test parsing single named arguments" $ do
-    it "pass no arguments at all" $ do
+  describe "Test parsing single named arguments." $ do
+    it "pass no arguments at all." $ do
       parseArgs [] `shouldReturn` Right (defaults :: ArgMap)
-    it "Test a single short flag with no arguments" $
-      parseArgs ["-r"] `shouldReturn` argMap [("redFlag", "")]
-    it "Test a single long flag with no arguments" $
-      parseArgs ["--redFlag"] `shouldReturn` argMap [("redFlag", "")]
+    it "Test a single short flag with no arguments." $
+      parseArgs ["-r"] `shouldReturn` argMap [("read", "")]
+    it "Test a single long flag with no arguments." $
+      parseArgs ["--read"] `shouldReturn` argMap [("read", "")]
     it "Long flags prefixed with single dash aren't accepted." $
-      parseArgs ["-redFlag"]
-        `shouldReturn` (Left (MalformedFlag "-redFlag") :: Either CliError ArgMap)
+      parseArgs ["-read"]
+        `shouldReturn` (Left (UnrecognisedShort 'e') :: Either CliError ArgMap)
     it "Further arguments after a flag are considered positional." $
       parseArgs ["-r", "ala", "ma", "kota"]
         `shouldReturn` (Left (UnexpectedPositional "ala") :: Either CliError ArgMap)
-  describe "Parse a single named argument with parameters" $ do
-    it "With one parameter to a flag, one more argument is consumed" $
+  describe "Parse a single named argument with parameters." $ do
+    it "With one parameter to a flag, one more argument is consumed." $
       parseArgs ["-o", "/dev/stdout"]
         `shouldReturn` argMap [("output", "/dev/stdout")]
     it "If the parameter is missing, it's considered an error." $
       parseArgs ["--output"]
         `shouldReturn` (Left (MissingParam "--output") :: Either CliError ArgMap)
+    it "Further arguments are parsed normally." $
+      parseArgs ["-o", "/dev/stdout", "xxx"]
+        `shouldReturn` (Left (UnexpectedPositional "xxx") :: Either CliError ArgMap)
   describe "Parse a single named argument with two params." $
-    it "Two-parameter flag consumes 2 arguments" $
+    it "Two-parameter flag consumes 2 arguments." $
       parseArgs ["--fromTo", "a", "b"] `shouldReturn` argMap [("fromTo", "a -> b")]
+  describe "Parse multiple named arguments" $ do
+    it "All are gathered into a map." $
+      parseArgs ["-o", "/dev/stdout", "-r", "--fromTo", "A", "B"]
+        `shouldReturn` argMap [("output", "/dev/stdout"), ("fromTo", "A -> B"), ("read", "")]
+    it "Order does not matter." $
+      parseArgs ["--fromTo", "A", "B", "-o", "/dev/stdout", "-r"]
+        `shouldReturn` argMap [("output", "/dev/stdout"), ("fromTo", "A -> B"), ("read", "")]
+    it "Beware, flag may be mistaken for a flag param." $
+      parseArgs ["-o", "-r"] `shouldReturn` argMap [("output", "-r")]
+  describe "It's possible to introduce several short flags with single dash" $
+    it "Parameters for the last such flag follow." $
+      parseArgs ["-rw"] `shouldReturn` argMap [("read", ""), ("write", "")]
       
 
