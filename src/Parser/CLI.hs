@@ -17,7 +17,7 @@ import Data.List (head, isPrefixOf)
 data CliError = UnrecognisedLong String
               | UnrecognisedShort Char
               | UnexpectedPositional String
-              | Missing String
+              | MissingParam String
               | MalformedFlag String
               | UserError String
               | Impossible
@@ -31,6 +31,12 @@ data Arg = Positional String
          | ShortFlag Char
          | LongFlag String
          | Hyphens Int
+
+instance Show Arg where
+  show (Positional arg) = arg
+  show (Hyphens count) = replicate count '-'
+  show (ShortFlag c) = ['-', c]
+  show (LongFlag f) = "--" <> f
 
 data Consume m f args where
   ConsumeArg :: Monad m => Consume m f args -> Consume m (String -> f) args
@@ -59,7 +65,7 @@ argParser acc (s : ss) = do
     Hyphens len -> hyphens acc len <&> flip (,) ss
     flag -> do
       spec <- findFlag flag flags
-      parseFlag spec acc ss
+      parseFlag flag spec acc ss
   argParser acc' ss'
 
 classifyArg :: Monad m => String -> ExceptT CliError m Arg
@@ -89,8 +95,9 @@ findFlag flag@(LongFlag f) (spec@(FlagSpec (OrBoth _ m) _ _) : specs)
   | f == m = return spec
   | otherwise = findFlag flag specs
 
-parseFlag :: Monad m => FlagSpec m args -> args -> [String] -> ExceptT CliError m (args, [String])
-parseFlag (FlagSpec _ FinalizeArg parse) args ss = parse args <&> flip (,) ss
-parseFlag (FlagSpec _ (ConsumeArg ty) parse) args [] = throwError $ Missing "argument"
-parseFlag (FlagSpec f (ConsumeArg ty) parse) args (s : ss) =
-  parseFlag (FlagSpec f ty (parse s)) args ss
+parseFlag :: Monad m => Arg -> FlagSpec m args ->
+             args -> [String] -> ExceptT CliError m (args, [String])
+parseFlag _ (FlagSpec _ FinalizeArg parse) args ss = parse args <&> flip (,) ss
+parseFlag arg (FlagSpec _ (ConsumeArg ty) parse) args [] = throwError . MissingParam $ show arg
+parseFlag arg (FlagSpec f (ConsumeArg ty) parse) args (s : ss) =
+  parseFlag arg (FlagSpec f ty (parse s)) args ss

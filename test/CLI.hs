@@ -51,7 +51,14 @@ instance CliArgs ArgMap where
   finalize = return
   positional _ = throwError . UnexpectedPositional
   hyphens _ count = throwError . UnexpectedPositional $ replicate count '-'
-  flags = [FlagSpec (OrBoth 'r' "redFlag") FinalizeArg (insertArg "redFlag" "")]
+  flags = [
+      FlagSpec (OrBoth 'r' "redFlag") FinalizeArg (insertArg "redFlag" ""),
+      FlagSpec (OrBoth 'o' "output") (ConsumeArg FinalizeArg) (insertArg "output"),
+      FlagSpec
+        (OrRight "fromTo")
+        (ConsumeArg $ ConsumeArg FinalizeArg)
+        (\a b -> insertArg "fromTo" (a <> " -> " <> b))
+    ]
 
 
 cliTests :: Spec
@@ -80,9 +87,28 @@ cliTests = parallel $ do
   describe "Parse hyphen as a special argument" $ do
     it "hyphen is interpreted as stdin" $ do
       parseArgs ["-"] `shouldReturn` Right (StrArgs ["/dev/stdin"])
-  describe "Test parsing named arguments" $ do
+  describe "Test parsing single named arguments" $ do
     it "pass no arguments at all" $ do
       parseArgs [] `shouldReturn` Right (defaults :: ArgMap)
     it "Test a single short flag with no arguments" $
       parseArgs ["-r"] `shouldReturn` argMap [("redFlag", "")]
+    it "Test a single long flag with no arguments" $
+      parseArgs ["--redFlag"] `shouldReturn` argMap [("redFlag", "")]
+    it "Long flags prefixed with single dash aren't accepted." $
+      parseArgs ["-redFlag"]
+        `shouldReturn` (Left (MalformedFlag "-redFlag") :: Either CliError ArgMap)
+    it "Further arguments after a flag are considered positional." $
+      parseArgs ["-r", "ala", "ma", "kota"]
+        `shouldReturn` (Left (UnexpectedPositional "ala") :: Either CliError ArgMap)
+  describe "Parse a single named argument with parameters" $ do
+    it "With one parameter to a flag, one more argument is consumed" $
+      parseArgs ["-o", "/dev/stdout"]
+        `shouldReturn` argMap [("output", "/dev/stdout")]
+    it "If the parameter is missing, it's considered an error." $
+      parseArgs ["--output"]
+        `shouldReturn` (Left (MissingParam "--output") :: Either CliError ArgMap)
+  describe "Parse a single named argument with two params." $
+    it "Two-parameter flag consumes 2 arguments" $
+      parseArgs ["--fromTo", "a", "b"] `shouldReturn` argMap [("fromTo", "a -> b")]
+      
 
