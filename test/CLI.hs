@@ -123,8 +123,14 @@ cliTests = parallel $ do
         `shouldReturn` argMap [("output", "/dev/stdout"), ("fromTo", "A -> B"), ("read", "")]
     it "Beware, flag may be mistaken for a flag param." $
       parseArgs ["-o", "-r"] `shouldReturn` argMap [("output", "-r")]
-  describe "It's possible to introduce several short flags with single dash" $
+  describe "It's possible to introduce several short flags with single dash" $ do
     it "Parameters for the last such flag follow." $
       parseArgs ["-rw"] `shouldReturn` argMap [("read", ""), ("write", "")]
+    xit "Last short flag in sequence can consume further arguments." $
+      parseArgs ["-wo", "/dev/stdout"]
+        `shouldReturn` argMap [("output", "/dev/stdout"), ("write", "")]
+    it "Non-last short flag can't consume parameters." $
+      parseArgs ["-ow", "/dev/stdout"]
+        `shouldReturn` (Left (MissingParam "-o") :: Either CliError ArgMap)
       
 

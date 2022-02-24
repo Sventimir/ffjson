@@ -73,8 +73,9 @@ argParser acc (s : ss) = do
   (acc', ss') <- case arg of
     Positional p -> positional acc p <&> flip (,) ss
     Dashes len -> hyphens acc len <&> flip (,) ss
-    ManyShortFlags fs ->
-      foldM (flip ($)) (acc, ss) (map interpFlag fs)
+    ManyShortFlags fs -> do
+      acc <- foldM (flip ($)) acc (map (interpFlag []) fs)
+      return (acc, ss)
     flag@(ShortFlag _) -> do
       spec <- findFlag flag flags
       parseFlag flag spec acc ss
@@ -92,11 +93,11 @@ classifyArg ('-' : flag : []) = return . AnyArg $ ShortFlag flag
 classifyArg flag@('-' : flags) = return . AnyArg $ ManyShortFlags flags
 classifyArg arg = return . AnyArg $ Positional arg
 
-interpFlag :: (CliArgs args, Monad m) => Char -> (args, [String]) ->
-              ExceptT CliError m (args, [String])
-interpFlag flag (acc, ss) = do
+interpFlag :: (CliArgs args, Monad m) => [String] -> Char -> args ->
+              ExceptT CliError m args
+interpFlag ss flag acc = do
   spec <- findFlag (ShortFlag flag) flags
-  parseFlag (ShortFlag flag) spec acc ss
+  parseFlag (ShortFlag flag) spec acc ss <&> fst
 
 findFlag :: Monad m => Arg (Flag ()) -> [FlagSpec m args] -> ExceptT CliError m (FlagSpec m args)
 findFlag (ShortFlag f) [] = throwError $ UnrecognisedShort f
