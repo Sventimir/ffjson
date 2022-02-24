@@ -114,19 +114,19 @@ cliTests = parallel $ do
   describe "Parse a single named argument with two params." $
     it "Two-parameter flag consumes 2 arguments." $
       parseArgs ["--fromTo", "a", "b"] `shouldReturn` argMap [("fromTo", "a -> b")]
-  describe "Parse multiple named arguments" $ do
+  describe "Parse multiple named arguments." $ do
     it "All are gathered into a map." $
       parseArgs ["-o", "/dev/stdout", "-r", "--fromTo", "A", "B"]
         `shouldReturn` argMap [("output", "/dev/stdout"), ("fromTo", "A -> B"), ("read", "")]
     it "Order does not matter." $
       parseArgs ["--fromTo", "A", "B", "-o", "/dev/stdout", "-r"]
         `shouldReturn` argMap [("output", "/dev/stdout"), ("fromTo", "A -> B"), ("read", "")]
-    it "Beware, flag may be mistaken for a flag param." $
-      parseArgs ["-o", "-r"] `shouldReturn` argMap [("output", "-r")]
+    it "Flag param may not start with a dash." $
+      parseArgs ["-o", "-r"] `shouldReturn` (Left (MissingParam "-o") :: Either CliError ArgMap)
   describe "It's possible to introduce several short flags with single dash" $ do
     it "Parameters for the last such flag follow." $
       parseArgs ["-rw"] `shouldReturn` argMap [("read", ""), ("write", "")]
-    xit "Last short flag in sequence can consume further arguments." $
+    it "Last short flag in sequence can consume further arguments." $
       parseArgs ["-wo", "/dev/stdout"]
         `shouldReturn` argMap [("output", "/dev/stdout"), ("write", "")]
     it "Non-last short flag can't consume parameters." $

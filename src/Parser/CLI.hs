@@ -27,26 +27,23 @@ data Or l r = OrLeft l
             | OrRight r
             | OrBoth l r
 
-data Posit
-data Flag a
-data Multiple
+data Simple
+data Parametric
 
 data Arg a where
-  Positional :: String -> Arg Posit
-  Dashes :: Int -> Arg Posit
-  LongFlag :: String -> Arg (Flag ())
-  ShortFlag :: Char -> Arg (Flag ())
-  ManyShortFlags :: [Char] -> Arg (Flag Multiple)
-
-data AnyArg where
-  AnyArg :: Arg a -> AnyArg
+  Positional :: String -> Arg Simple
+  Dashes :: Int -> Arg Simple
+  LongFlag :: String -> Arg Parametric
+  ShortFlag :: Char -> Arg Parametric
 
 instance Show (Arg a) where
   show (Positional arg) = arg
   show (Dashes count) = replicate count '-'
   show (LongFlag f) = "--" <> f
   show (ShortFlag f) = ['-', f]
-  show (ManyShortFlags fs) = '-' : fs
+
+data AnyArg where
+  AnyArg :: Arg a -> AnyArg
 
 data Consume m f args where
   ConsumeArg :: Monad m => Consume m f args -> Consume m (String -> f) args
@@ -67,39 +64,33 @@ parseArgs :: (CliArgs args, Monad m) => [String] -> m (Either CliError args)
 parseArgs args = runExceptT $ argParser defaults args
 
 argParser :: (CliArgs args, Monad m) => args -> [String] -> ExceptT CliError m args
-argParser acc [] = finalize acc
-argParser acc (s : ss) = do
-  AnyArg arg <- classifyArg s
-  (acc', ss') <- case arg of
-    Positional p -> positional acc p <&> flip (,) ss
-    Dashes len -> hyphens acc len <&> flip (,) ss
-    ManyShortFlags fs -> do
-      acc <- foldM (flip ($)) acc (map (interpFlag []) fs)
-      return (acc, ss)
-    flag@(ShortFlag _) -> do
-      spec <- findFlag flag flags
-      parseFlag flag spec acc ss
-    flag@(LongFlag _) -> do
-      spec <- findFlag flag flags
-      parseFlag flag spec acc ss
-  argParser acc' ss'
+argParser acc strs = concatMapM classifyArg strs >>= consumeArgs acc
 
-classifyArg :: Monad m => String -> ExceptT CliError m AnyArg
-classifyArg ['-'] = return . AnyArg $ Dashes 1
+consumeArgs :: (CliArgs args, Monad m) => args -> [AnyArg] -> ExceptT CliError m args
+consumeArgs acc [] = finalize acc
+consumeArgs acc (AnyArg (Positional p) : args) =
+  positional acc p >>= flip consumeArgs args
+consumeArgs acc (AnyArg (Dashes count) : args) =
+  hyphens acc count >>= flip consumeArgs args
+consumeArgs acc (AnyArg f@(ShortFlag _) : args) = do
+  spec <- findFlag f flags
+  (acc', args') <- parseFlag f spec acc args
+  consumeArgs acc' args'
+consumeArgs acc (AnyArg f@(LongFlag _) : args) = do
+  spec <- findFlag f flags
+  (acc', args') <- parseFlag f spec acc args
+  consumeArgs acc' args'
+  
+classifyArg :: Monad m => String -> ExceptT CliError m [AnyArg]
+classifyArg ['-'] = return [AnyArg $ Dashes 1]
 classifyArg ('-' : '-' : flag)
-  | all (== '-') flag = return . AnyArg . Dashes $ length flag + 2
-  | otherwise = return . AnyArg $ LongFlag flag
-classifyArg ('-' : flag : []) = return . AnyArg $ ShortFlag flag
-classifyArg flag@('-' : flags) = return . AnyArg $ ManyShortFlags flags
-classifyArg arg = return . AnyArg $ Positional arg
+  | all (== '-') flag = return [AnyArg . Dashes $ length flag + 2]
+  | otherwise = return [AnyArg $ LongFlag flag]
+classifyArg ('-' : flag : []) = return [AnyArg $ ShortFlag flag]
+classifyArg flag@('-' : flags) = return $ map (AnyArg . ShortFlag) flags
+classifyArg arg = return [AnyArg $ Positional arg]
 
-interpFlag :: (CliArgs args, Monad m) => [String] -> Char -> args ->
-              ExceptT CliError m args
-interpFlag ss flag acc = do
-  spec <- findFlag (ShortFlag flag) flags
-  parseFlag (ShortFlag flag) spec acc ss <&> fst
-
-findFlag :: Monad m => Arg (Flag ()) -> [FlagSpec m args] -> ExceptT CliError m (FlagSpec m args)
+findFlag :: Monad m => Arg Parametric -> [FlagSpec m args] -> ExceptT CliError m (FlagSpec m args)
 findFlag (ShortFlag f) [] = throwError $ UnrecognisedShort f
 findFlag (LongFlag f) [] = throwError $ UnrecognisedLong f
 findFlag flag@(ShortFlag f) (spec@(FlagSpec (OrLeft m) _ _) : specs)
@@ -116,9 +107,19 @@ findFlag flag@(LongFlag f) (spec@(FlagSpec (OrBoth _ m) _ _) : specs)
   | otherwise = findFlag flag specs
 findFlag flag (_ : specs) = findFlag flag specs
 
-parseFlag :: Monad m => Arg (Flag ()) -> FlagSpec m args ->
-             args -> [String] -> ExceptT CliError m (args, [String])
-parseFlag _ (FlagSpec _ FinalizeArg parse) args ss = parse args <&> flip (,) ss
-parseFlag arg (FlagSpec _ (ConsumeArg ty) parse) args [] = throwError . MissingParam $ show arg
-parseFlag arg (FlagSpec f (ConsumeArg ty) parse) args (s : ss) =
-  parseFlag arg (FlagSpec f ty (parse s)) args ss
+parseFlag :: Monad m => Arg Parametric -> FlagSpec m args ->
+             args -> [AnyArg] -> ExceptT CliError m (args, [AnyArg])
+parseFlag _ (FlagSpec _ FinalizeArg parse) acc args = parse acc <&> flip (,) args
+parseFlag arg (FlagSpec _ (ConsumeArg ty) parse) acc [] = throwError . MissingParam $ show arg
+parseFlag arg (FlagSpec f (ConsumeArg ty) parse) acc (AnyArg (Positional p) : args) =
+  parseFlag arg (FlagSpec f ty (parse p)) acc args
+parseFlag arg (FlagSpec _ (ConsumeArg ty) parse) acc (AnyArg _ : _) =
+  throwError . MissingParam $ show arg
+
+concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
+concatMapM f xs = cmap [] xs
+  where
+  cmap acc [] = return acc
+  cmap acc (x : xs) = do
+    ys <- f x
+    cmap (acc ++ ys) xs
