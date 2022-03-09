@@ -52,12 +52,12 @@ instance CliArgs ArgMap where
   positional _ = throwError . UnexpectedPositional
   hyphens _ count = throwError . UnexpectedPositional $ replicate count '-'
   flags = [
-      FlagSpec (OrBoth 'w' "write") FinalizeArg (insertArg "write" ""),
-      FlagSpec (OrBoth 'r' "read") FinalizeArg (insertArg "read" ""),
-      FlagSpec (OrBoth 'o' "output") (ConsumeArg FinalizeArg) (insertArg "output"),
+      FlagSpec (OrBoth 'w' "write") ArgZ (insertArg "write" ""),
+      FlagSpec (OrBoth 'r' "read") ArgZ (insertArg "read" ""),
+      FlagSpec (OrBoth 'o' "output") (ArgS ArgZ) (insertArg "output"),
       FlagSpec
         (OrRight "fromTo")
-        (ConsumeArg $ ConsumeArg FinalizeArg)
+        (ArgS $ ArgS ArgZ)
         (\a b -> insertArg "fromTo" (a <> " -> " <> b))
     ]
 
