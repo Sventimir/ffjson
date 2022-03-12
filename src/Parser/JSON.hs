@@ -39,6 +39,9 @@ string :: Monad m => Parser m Text
 string = lexeme $
          fmap Text.pack $ quoted . many $ anySingleBut '"'
 
+punctuation :: Monad m => Char -> Parser m Char
+punctuation = lexeme . char
+
 number :: (JSON j, Monad m) => Parser m j
 number = lexeme $ fmap num (try Lexer.float <|> Lexer.decimal)
 
@@ -52,12 +55,14 @@ constants = lexeme $
 
 arr :: (JSON j, Monad m) => Parser m j
 arr = lexeme $ do
-  elems <- between (char '[') (char ']') $ sepBy json (char ',')
+  elems <- between (punctuation '[') (punctuation ']')
+    $ sepBy json (punctuation ',')
   return $ array elems
 
 object :: (JSON j, Monad m) => Parser m j
 object = lexeme $ do
-  elems <- between (char '{') (char '}') $ sepBy keyValuePair (char ',')
+  elems <- between (punctuation '{') (punctuation '}')
+    $ sepBy keyValuePair (punctuation ',')
   return $ obj elems
   where
   keyValuePair :: (JSON j, Monad m) => Parser m (Text, j)
