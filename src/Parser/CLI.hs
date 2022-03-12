@@ -125,6 +125,8 @@ parseFlag _ (FlagSpec _ ArgZ parse) acc args = parse acc <&> flip (,) args
 parseFlag arg (FlagSpec _ (ArgS ty) parse) acc [] = throwError . MissingParam $ show arg
 parseFlag arg (FlagSpec f (ArgS ty) parse) acc (AnyArg (Positional p) : args) =
   parseFlag arg (FlagSpec f ty (parse p)) acc args
+parseFlag arg (FlagSpec f (ArgS ty) parse) acc (AnyArg (Dashes len) : args) =
+  parseFlag arg (FlagSpec f ty (parse $ replicate len '-')) acc args
 parseFlag arg (FlagSpec _ (ArgS ty) parse) acc (AnyArg _ : _) =
   throwError . MissingParam $ show arg
 
