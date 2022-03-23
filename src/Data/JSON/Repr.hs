@@ -1,10 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
 module Data.JSON.Repr (
-  Repr,
-  text
+  reprS
 ) where
 
+import Control.Monad.Trans.Cont (Cont, runCont)
 
+import Data.Coerce (coerce)
 import Data.JSON (JSON(..))
 import Data.String (IsString(..))
 import Data.Text (Text)
@@ -15,78 +16,31 @@ toText :: Show a => a -> Text
 toText = Text.pack . show
 
 
-data BuilderLayer = Layer {
-    queue :: [TextBuilder -> TextBuilder],
-    contents :: Text,
-    embed :: Text -> Text
-  }
+newtype Repr r = Repr (Cont r Text)
 
-newtype TextBuilder = TextBuilder [BuilderLayer]
+kvPair :: (Text, Repr r) -> Repr r
+kvPair (key, Repr reprVal) = Repr $ do
+  val <- reprVal
+  return ("\"" <> key <> "\":" <> val)
 
-newtype Repr = Repr (TextBuilder -> TextBuilder)
+instance JSON (Repr r) where
+  str s = Repr $ return ("\"" <> s <> "\"")
+  num n = Repr $ return (toText n)
+  bool True = Repr $ return "true"
+  bool False = Repr $ return "false"
+  null = Repr $ return "null"
+  array js = Repr $ do
+      arr <- sequence $ coerce js
+      return ("[" <> Text.intercalate "," arr <> "]")
+  obj kvs = Repr $ do
+      o <- sequence . coerce $ map kvPair kvs
+      return ("{" <> Text.intercalate "," o <> "}")
 
-initialLayer :: BuilderLayer
-initialLayer = Layer {
-    queue = [],
-    contents = "",
-    embed = id
-  }
+reprS :: Repr r -> (Text -> r) -> r
+reprS (Repr json) f = runCont json f
 
-foldLayer :: BuilderLayer -> Text
-foldLayer l = embed l $ contents l
+instance Show (Repr String) where
+  show = flip reprS Text.unpack
 
-foldBuilder :: TextBuilder -> TextBuilder
-foldBuilder (TextBuilder []) = TextBuilder []
-foldBuilder (TextBuilder [l]) = TextBuilder [Layer [] (foldLayer l) id]
-foldBuilder (TextBuilder (l : r : ls)) =
-  TextBuilder (r { contents = contents r <> foldLayer l} : ls)
-
-unfoldBuilder :: [TextBuilder -> TextBuilder] -> (Text -> Text) -> TextBuilder -> TextBuilder
-unfoldBuilder q embed (TextBuilder ls) = TextBuilder (Layer q "" embed : ls)
-
-dequeue :: TextBuilder -> TextBuilder
-dequeue (TextBuilder []) = TextBuilder []
-dequeue tb@(TextBuilder (l : ls)) = case queue l of
-  [] -> foldBuilder tb
-  (q : qs) -> dequeue . q $ TextBuilder (l { queue = qs } : ls)
-
-writeToLayer :: Text -> TextBuilder -> TextBuilder
-writeToLayer txt (TextBuilder []) = TextBuilder [Layer [] txt id]
-writeToLayer txt (TextBuilder (l : ls)) = TextBuilder (l { contents = contents l <> txt } : ls)
-
-surround :: Char -> Char -> Text -> Text
-surround bef aft txt = bef `Text.cons` txt `Text.snoc` aft
-
-withSeps :: Text -> [Repr] -> [TextBuilder -> TextBuilder]
-withSeps _ [] = []
-withSeps _ [Repr j] = [j]
-withSeps sep (Repr j : js) = (writeToLayer sep . j) : withSeps sep js
-
-formatKV :: (Text, Repr) -> Repr
-formatKV (key, Repr val) = Repr (val . writeToLayer (surround '"' '"' key <> ":"))
-
-instance JSON Repr where
-  str = Repr . writeToLayer . (surround '"' '"')
-  num = Repr . writeToLayer . toText
-  bool True = Repr $ writeToLayer "true"
-  bool False = Repr $ writeToLayer "false"
-  null = Repr $ writeToLayer "null"
-  array js = Repr $ dequeue . unfoldBuilder (withSeps "," js) (surround '[' ']')
-  obj props = Repr $ dequeue . unfoldBuilder (withSeps "," $ map formatKV props) (surround '{' '}')
-
-buildText :: TextBuilder -> Text
-buildText (TextBuilder []) = ""
-buildText (TextBuilder [l]) = contents l
-buildText tb = buildText $ foldBuilder tb
-
-text :: Repr -> Text
-text (Repr buildFrom) = buildText . buildFrom $ TextBuilder []
-
-instance Show Repr where
-  show = Text.unpack . text
-
-instance Semigroup Repr where
-  (Repr l) <> (Repr r) = Repr (l . r)
-
-instance Monoid Repr where
-  mempty = Repr id
+instance Show (Repr Text) where
+  show = Text.unpack . flip reprS id

@@ -16,11 +16,11 @@ import CLI
 main :: IO ()
 main = hspec $ do
   cliTests
-  describe "parse-unparse-identity" $
+  describe "parse-unparse-identity" $ do
     it "parsing after serialisation is an identity" $
       property $ \(Wrapson json) ->
                    let (repr, rollingHash) = json in
-                   case parseJSON $ text repr of
+                   case parseJSON $ reprS repr id of
                      Left _ -> False
                      Right json' -> hash rollingHash == hash json'
 

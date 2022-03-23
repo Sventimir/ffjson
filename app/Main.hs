@@ -5,7 +5,7 @@ import Control.Monad.Except (ExceptT, liftEither, throwError, runExceptT, withEx
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
 import Data.JSON (JSON(..))
-import Data.JSON.Repr (text)
+import Data.JSON.Repr (reprS)
 import Data.List (replicate, reverse)
 import Data.Text (Text)
 import qualified Data.Text.IO as Text
@@ -44,7 +44,7 @@ main = do
     jsons <- mapM (parseJson <=< loadFile) inputs
     return $ array jsons
   case result of
-    Right json -> Text.putStrLn $ text json
+    Right json -> Text.putStrLn $ reprS json id
     Left error -> print error
 
 loadFile :: MonadIO m => String -> ExceptT FFJsonError m Text

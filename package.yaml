@@ -19,6 +19,7 @@ dependencies:
 - megaparsec
 - mtl
 - text
+- transformers
 
 library:
   source-dirs: src
