@@ -18,23 +18,32 @@ toText = Text.pack . show
 
 newtype Repr r = Repr (Cont r Text)
 
+instance (Monad m, Semigroup a) => Semigroup (m a) where
+  ma <> mb = do
+    a <- ma
+    b <- mb
+    return (a <> b)
+
+instance IsString a => IsString (Cont r a) where
+  fromString = return . fromString
+
 kvPair :: (Text, Repr r) -> Repr r
 kvPair (key, Repr reprVal) = Repr $ do
   val <- reprVal
-  return ("\"" <> key <> "\":" <> val)
+  "\"" <> return key <> "\":" <> return val
 
 instance JSON (Repr r) where
-  str s = Repr $ return ("\"" <> s <> "\"")
+  str s = Repr $ "\"" <> return s <> "\""
   num n = Repr $ return (toText n)
-  bool True = Repr $ return "true"
-  bool False = Repr $ return "false"
-  null = Repr $ return "null"
+  bool True = Repr "true"
+  bool False = Repr "false"
+  null = Repr "null"
   array js = Repr $ do
       arr <- sequence $ coerce js
-      return ("[" <> Text.intercalate "," arr <> "]")
+      "[" <> return (Text.intercalate "," arr) <> "]"
   obj kvs = Repr $ do
       o <- sequence . coerce $ map kvPair kvs
-      return ("{" <> Text.intercalate "," o <> "}")
+      "{" <> return (Text.intercalate "," o) <> "}"
 
 reprS :: Repr r -> (Text -> r) -> r
 reprS (Repr json) f = runCont json f
