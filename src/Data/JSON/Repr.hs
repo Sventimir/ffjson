@@ -7,6 +7,7 @@ import Control.Monad.Trans.Cont (Cont, runCont)
 
 import Data.Coerce (coerce)
 import Data.JSON (JSON(..))
+import Data.List (intersperse)
 import Data.String (IsString(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -32,18 +33,23 @@ kvPair (key, Repr reprVal) = Repr $ do
   val <- reprVal
   "\"" <> return key <> "\":" <> return val
 
+withCommas :: Monad m => [m Text] -> m Text
+withCommas = fmap Text.concat . sequence . intersperse (return ",")
+
+singleton :: Monad m => Char -> m Text
+singleton = return . Text.singleton
+
+enclose :: Char -> Cont r Text -> Char -> Cont r Text
+enclose hd body tl = singleton hd <> body <> singleton tl
+
 instance JSON (Repr r) where
   str s = Repr $ "\"" <> return s <> "\""
   num n = Repr $ return (toText n)
   bool True = Repr "true"
   bool False = Repr "false"
   null = Repr "null"
-  array js = Repr $ do
-      arr <- sequence $ coerce js
-      "[" <> return (Text.intercalate "," arr) <> "]"
-  obj kvs = Repr $ do
-      o <- sequence . coerce $ map kvPair kvs
-      "{" <> return (Text.intercalate "," o) <> "}"
+  array js = Repr $ enclose '[' (withCommas $ coerce js) ']'
+  obj kvs = Repr $ enclose '{' (withCommas . coerce $ map kvPair kvs) '}'
 
 reprS :: Repr r -> (Text -> r) -> r
 reprS (Repr json) f = runCont json f
