@@ -3,6 +3,7 @@ module Data.JSON.Repr (
   reprS
 ) where
 
+import Control.Monad.State (StateT, evalStateT, get, gets, put)
 import Control.Monad.Trans.Cont (Cont, runCont)
 
 import Data.Coerce (coerce)
@@ -17,7 +18,26 @@ toText :: Show a => a -> Text
 toText = Text.pack . show
 
 
-newtype Repr r = Repr (Cont r Text)
+newtype Indentation = Indentation (Int, Int)
+
+modifyReturning :: Monad m => (Int -> Int -> Int) -> StateT Indentation m Text
+modifyReturning f = do
+  Indentation (cur, step) <- get
+  let cur' = f cur step
+  put $ Indentation (cur', step)
+  return $ Text.replicate cur' " "
+
+indent :: Monad m => StateT Indentation m Text
+indent = modifyReturning (+)
+
+unindent :: Monad m => StateT Indentation m Text
+unindent = modifyReturning (-)
+
+indentation :: Indentation -> Int
+indentation (Indentation (current, _)) = current
+
+
+newtype Repr r = Repr (StateT Indentation (Cont r) Text)
 
 instance (Monad m, Semigroup a) => Semigroup (m a) where
   ma <> mb = do
@@ -25,22 +45,32 @@ instance (Monad m, Semigroup a) => Semigroup (m a) where
     b <- mb
     return (a <> b)
 
-instance IsString a => IsString (Cont r a) where
+instance IsString a => IsString (StateT s (Cont r) a) where
   fromString = return . fromString
 
 kvPair :: (Text, Repr r) -> Repr r
 kvPair (key, Repr reprVal) = Repr $ do
   val <- reprVal
-  "\"" <> return key <> "\":" <> return val
+  "\"" <> return key <> colon <> return val
+  where
+  colon = do
+    i <- gets indentation
+    if i > 0 then "\": " else "\":"
 
-withCommas :: Monad m => [m Text] -> m Text
-withCommas = fmap Text.concat . sequence . intersperse (return ",")
+withCommas :: Monad m => [StateT Indentation m Text] -> StateT Indentation m Text
+withCommas = fmap Text.concat . sequence . intersperse comma
+  where
+  comma = do
+    i <- gets indentation
+    if i > 0 then return (",\n" <> Text.replicate i " ") else return ","
 
-singleton :: Monad m => Char -> m Text
-singleton = return . Text.singleton
-
-enclose :: Char -> Cont r Text -> Char -> Cont r Text
-enclose hd body tl = singleton hd <> body <> singleton tl
+enclose :: Char -> StateT Indentation (Cont r) Text -> Char -> StateT Indentation (Cont r) Text
+enclose hd body tl =
+    (indent >>= \i ->
+        return $ hd `Text.cons` '\n' `Text.cons` i) <>
+    body <>
+    (unindent >>= \i ->
+        return $ '\n' `Text.cons` i `Text.snoc`tl)
 
 instance JSON (Repr r) where
   str s = Repr $ "\"" <> return s <> "\""
@@ -51,11 +81,12 @@ instance JSON (Repr r) where
   array js = Repr $ enclose '[' (withCommas $ coerce js) ']'
   obj kvs = Repr $ enclose '{' (withCommas . coerce $ map kvPair kvs) '}'
 
-reprS :: Repr r -> (Text -> r) -> r
-reprS (Repr json) f = runCont json f
+reprS :: Repr r -> Int -> (Text -> r) -> r
+reprS (Repr json) indentationStep f =
+  runCont (evalStateT json $ Indentation (0, indentationStep)) f
 
 instance Show (Repr String) where
-  show = flip reprS Text.unpack
+  show r = reprS r 0 Text.unpack
 
 instance Show (Repr Text) where
-  show = Text.unpack . flip reprS id
+  show r = Text.unpack $ reprS r 0 id

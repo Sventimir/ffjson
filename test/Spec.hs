@@ -20,7 +20,7 @@ main = hspec $ do
     it "parsing after serialisation is an identity" $
       property $ \(Wrapson json) ->
                    let (repr, rollingHash) = json in
-                   case parseJSON $ reprS repr id of
+                   case parseJSON $ reprS repr 0 id of
                      Left _ -> False
                      Right json' -> hash rollingHash == hash json'
 

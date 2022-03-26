@@ -44,7 +44,7 @@ main = do
     jsons <- mapM (parseJson <=< loadFile) inputs
     return $ array jsons
   case result of
-    Right json -> Text.putStrLn $ reprS json id
+    Right json -> Text.putStrLn $ reprS json 2 id
     Left error -> print error
 
 loadFile :: MonadIO m => String -> ExceptT FFJsonError m Text
