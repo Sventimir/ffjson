@@ -25,7 +25,7 @@ modifyReturning f = do
   Indentation (cur, step) <- get
   let cur' = f cur step
   put $ Indentation (cur', step)
-  return $ Text.replicate cur' " "
+  return $ if cur' > 0 then '\n' `Text.cons` Text.replicate cur' " " else ""
 
 indent :: Monad m => StateT Indentation m Text
 indent = modifyReturning (+)
@@ -66,11 +66,9 @@ withCommas = fmap Text.concat . sequence . intersperse comma
 
 enclose :: Char -> StateT Indentation (Cont r) Text -> Char -> StateT Indentation (Cont r) Text
 enclose hd body tl =
-    (indent >>= \i ->
-        return $ hd `Text.cons` '\n' `Text.cons` i) <>
+    (indent >>= \i -> return $ hd `Text.cons` i) <>
     body <>
-    (unindent >>= \i ->
-        return $ '\n' `Text.cons` i `Text.snoc`tl)
+    (unindent >>= \i -> return $ i `Text.snoc`tl)
 
 instance JSON (Repr r) where
   str s = Repr $ "\"" <> return s <> "\""

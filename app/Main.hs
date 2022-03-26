@@ -24,27 +24,37 @@ data FFJsonError = CliError CliError
 
 newtype Inputs = Inputs [String]
 
-addInput :: String -> Inputs -> Inputs
-addInput filename (Inputs ins) = Inputs (filename : ins)
+data Config = Config {
+    inputs :: [String],
+    indentation :: Int
+  }
 
-instance CliArgs Inputs where
-  defaults = Inputs []
-  finalize (Inputs ins) = return $ Inputs (reverse ins)
+addInput :: String -> Config -> Config
+addInput filename cfg = cfg { inputs = filename : inputs cfg}
+
+setIndentation :: Int -> Config -> Config
+setIndentation i cfg = cfg { indentation = i }
+
+instance CliArgs Config where
+  defaults = Config [] 2
+  finalize cfg = return $ cfg { inputs = reverse $ inputs cfg}
   positional _ = throwError . UnexpectedPositional
   hyphens _ len = throwError . UnexpectedPositional $ replicate len '-'
   flags = [
-            FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) (\f -> return . addInput f)
+            FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) (\f -> return . addInput f),
+            FlagSpec (OrBoth 'r' "raw") ArgZ (return . setIndentation 0),
+            FlagSpec (OrRight "indent") (ArgS ArgZ) (\i -> return . setIndentation (read i))
           ]
 
 
 main :: IO ()
 main = do
   result <- runExceptT $ do
-    Inputs inputs <- withExceptT CliError $ cliParser defaults
-    jsons <- mapM (parseJson <=< loadFile) inputs
-    return $ array jsons
+    cfg <- withExceptT CliError $ cliParser defaults
+    jsons <- mapM (parseJson <=< loadFile) (inputs cfg)
+    return $ (cfg, array jsons)
   case result of
-    Right json -> Text.putStrLn $ reprS json 2 id
+    Right (cfg, json) -> Text.putStrLn $ reprS json (indentation cfg) id
     Left error -> print error
 
 loadFile :: MonadIO m => String -> ExceptT FFJsonError m Text
