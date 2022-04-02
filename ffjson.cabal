@@ -44,6 +44,7 @@ library
 executable ffjson-exe
   main-is: Main.hs
   other-modules:
+      Data.Input
       Paths_ffjson
   hs-source-dirs:
       app
@@ -51,6 +52,7 @@ executable ffjson-exe
   build-depends:
       base >=4.7 && <5
     , ffjson
+    , http-conduit
     , megaparsec
     , mtl
     , text
