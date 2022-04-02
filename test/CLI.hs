@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module CLI ( cliTests ) where
 
 import Control.Monad.Except (MonadIO, ExceptT, liftIO, throwError)
@@ -13,7 +14,19 @@ data Option = Default | OptionA | OptionB | OptionC | OptionD
 
 newtype StrArgs = StrArgs [String] deriving (Show, Eq)
 
-instance CliArgs StrArgs where
+data Error = UnrecognisedLong String
+           | UnrecognisedShort Char
+           | UnexpectedPositional String
+           | MissingParam String
+           | UserError String
+           deriving (Eq, Show)
+
+instance CliError Error where
+  unrecognisedLong = UnrecognisedLong
+  unrecognisedShort = UnrecognisedShort
+  missingParam = MissingParam
+
+instance CliArgs Error StrArgs where
   defaults = StrArgs []
   finalize (StrArgs args) = return . StrArgs $ reverse args
   positional (StrArgs args) = return . StrArgs . (: args)
@@ -25,7 +38,7 @@ instance CliArgs StrArgs where
 data OptAndFloat = OptAndFloat Option Float
   deriving (Show, Eq)
 
-instance CliArgs OptAndFloat where
+instance CliArgs Error OptAndFloat where
   defaults = OptAndFloat Default 0
   finalize = return
   positional (OptAndFloat _ flt) "optionA" = return $ OptAndFloat OptionA flt
@@ -40,13 +53,13 @@ instance CliArgs OptAndFloat where
 newtype ArgMap = ArgMap (Map String String)
   deriving (Show, Eq)
 
-argMap :: [(String, String)] -> Either CliError ArgMap
+argMap :: [(String, String)] -> Either Error ArgMap
 argMap = Right . ArgMap . Map.fromList
 
-insertArg :: Monad m => String -> String -> ArgMap -> ExceptT CliError m ArgMap
+insertArg :: Monad m => String -> String -> ArgMap -> ExceptT Error m ArgMap
 insertArg key val (ArgMap m) = return . ArgMap $ Map.insert key val m
 
-instance CliArgs ArgMap where
+instance CliArgs Error ArgMap where
   defaults = ArgMap Map.empty
   finalize = return
   positional _ = throwError . UnexpectedPositional
@@ -97,20 +110,20 @@ cliTests = parallel $ do
       parseArgs ["--read"] `shouldReturn` argMap [("read", "")]
     it "Long flags prefixed with single dash aren't accepted." $
       parseArgs ["-read"]
-        `shouldReturn` (Left (UnrecognisedShort 'e') :: Either CliError ArgMap)
+        `shouldReturn` (Left (UnrecognisedShort 'e') :: Either Error ArgMap)
     it "Further arguments after a flag are considered positional." $
       parseArgs ["-r", "ala", "ma", "kota"]
-        `shouldReturn` (Left (UnexpectedPositional "ala") :: Either CliError ArgMap)
+        `shouldReturn` (Left (UnexpectedPositional "ala") :: Either Error ArgMap)
   describe "Parse a single named argument with parameters." $ do
     it "With one parameter to a flag, one more argument is consumed." $
       parseArgs ["-o", "/dev/stdout"]
         `shouldReturn` argMap [("output", "/dev/stdout")]
     it "If the parameter is missing, it's considered an error." $
       parseArgs ["--output"]
-        `shouldReturn` (Left (MissingParam "--output") :: Either CliError ArgMap)
+        `shouldReturn` (Left (MissingParam "--output") :: Either Error ArgMap)
     it "Further arguments are parsed normally." $
       parseArgs ["-o", "/dev/stdout", "xxx"]
-        `shouldReturn` (Left (UnexpectedPositional "xxx") :: Either CliError ArgMap)
+        `shouldReturn` (Left (UnexpectedPositional "xxx") :: Either Error ArgMap)
   describe "Parse a single named argument with two params." $
     it "Two-parameter flag consumes 2 arguments." $
       parseArgs ["--fromTo", "a", "b"] `shouldReturn` argMap [("fromTo", "a -> b")]
@@ -122,7 +135,7 @@ cliTests = parallel $ do
       parseArgs ["--fromTo", "A", "B", "-o", "/dev/stdout", "-r"]
         `shouldReturn` argMap [("output", "/dev/stdout"), ("fromTo", "A -> B"), ("read", "")]
     it "Flag param may not start with a dash." $
-      parseArgs ["-o", "-r"] `shouldReturn` (Left (MissingParam "-o") :: Either CliError ArgMap)
+      parseArgs ["-o", "-r"] `shouldReturn` (Left (MissingParam "-o") :: Either Error ArgMap)
   describe "It's possible to introduce several short flags with single dash" $ do
     it "Parameters for the last such flag follow." $
       parseArgs ["-rw"] `shouldReturn` argMap [("read", ""), ("write", "")]
@@ -131,6 +144,6 @@ cliTests = parallel $ do
         `shouldReturn` argMap [("output", "/dev/stdout"), ("write", "")]
     it "Non-last short flag can't consume parameters." $
       parseArgs ["-ow", "/dev/stdout"]
-        `shouldReturn` (Left (MissingParam "-o") :: Either CliError ArgMap)
+        `shouldReturn` (Left (MissingParam "-o") :: Either Error ArgMap)
       
 

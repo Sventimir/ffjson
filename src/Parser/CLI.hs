@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FunctionalDependencies, GADTs, MultiParamTypeClasses #-}
 module Parser.CLI (
   CliArgs(..),
   CliError(..),
@@ -22,12 +22,10 @@ import Data.Word (Word8)
 import System.Environment (getArgs)
 
 
-data CliError = UnrecognisedLong String
-              | UnrecognisedShort Char
-              | UnexpectedPositional String
-              | MissingParam String
-              | UserError String
-              deriving (Show, Eq)
+class CliError e where
+  unrecognisedLong :: String -> e
+  unrecognisedShort :: Char -> e
+  missingParam :: String -> e
 
 data Or l r = OrLeft l
             | OrRight r
@@ -51,34 +49,34 @@ instance Show (Arg a) where
 data AnyArg where
   AnyArg :: Arg a -> AnyArg
 
-data Consume m f args where
-  ArgS :: Monad m => Consume m f args -> Consume m (String -> f) args
-  ArgZ :: Monad m => Consume m (args -> ExceptT CliError m args) args
+data Consume e m f args where
+  ArgS :: Monad m => Consume e m f args -> Consume e m (String -> f) args
+  ArgZ :: Monad m => Consume e m (args -> ExceptT e m args) args
 
-data FlagSpec m args where
-  FlagSpec :: Or Char String -> Consume m f args -> f -> FlagSpec m args
+data FlagSpec m e args where
+  FlagSpec :: Or Char String -> Consume e m f args -> f -> FlagSpec e m args
 
-class CliArgs args where
+class CliError e => CliArgs e args | args -> e where
   defaults :: args
-  finalize :: Monad m => args -> ExceptT CliError m args
-  positional :: Monad m => args -> String -> ExceptT CliError m args
-  hyphens :: Monad m => args -> Int -> ExceptT CliError m args
-  flags :: Monad m => [FlagSpec m args]
+  finalize :: Monad m => args -> ExceptT e m args
+  positional :: Monad m => args -> String -> ExceptT e m args
+  hyphens :: Monad m => args -> Int -> ExceptT e m args
+  flags :: Monad m => [FlagSpec e m args]
   
 
-parseCli :: (CliArgs args, MonadIO m) => m (Either CliError args)
+parseCli :: (CliArgs e args, MonadIO m) => m (Either e args)
 parseCli = liftIO getArgs >>= parseArgs
 
-parseArgs :: (CliArgs args, Monad m) => [String] -> m (Either CliError args)
+parseArgs :: (CliArgs e args, Monad m) => [String] -> m (Either e args)
 parseArgs args = runExceptT $ argParser defaults args
 
-cliParser :: (CliArgs args, MonadIO m) => args -> ExceptT CliError m args
+cliParser :: (CliArgs e args, MonadIO m) => args -> ExceptT e m args
 cliParser args = liftIO getArgs >>= argParser args
 
-argParser :: (CliArgs args, Monad m) => args -> [String] -> ExceptT CliError m args
+argParser :: (CliArgs e args, Monad m) => args -> [String] -> ExceptT e m args
 argParser acc strs = concatMapM classifyArg strs >>= consumeArgs acc
 
-consumeArgs :: (CliArgs args, Monad m) => args -> [AnyArg] -> ExceptT CliError m args
+consumeArgs :: (CliArgs e args, Monad m) => args -> [AnyArg] -> ExceptT e m args
 consumeArgs acc [] = finalize acc
 consumeArgs acc (AnyArg (Positional p) : args) =
   positional acc p >>= flip consumeArgs args
@@ -93,7 +91,7 @@ consumeArgs acc (AnyArg f@(LongFlag _) : args) = do
   (acc', args') <- parseFlag f spec acc args
   consumeArgs acc' args'
   
-classifyArg :: Monad m => String -> ExceptT CliError m [AnyArg]
+classifyArg :: (CliError e, Monad m) => String -> ExceptT e m [AnyArg]
 classifyArg ['-'] = return [AnyArg $ Dashes 1]
 classifyArg ('-' : '-' : flag)
   | all (== '-') flag = return [AnyArg . Dashes $ length flag + 2]
@@ -102,9 +100,9 @@ classifyArg ('-' : flag : []) = return [AnyArg $ ShortFlag flag]
 classifyArg flag@('-' : flags) = return $ map (AnyArg . ShortFlag) flags
 classifyArg arg = return [AnyArg $ Positional arg]
 
-findFlag :: Monad m => Arg Parametric -> [FlagSpec m args] -> ExceptT CliError m (FlagSpec m args)
-findFlag (ShortFlag f) [] = throwError $ UnrecognisedShort f
-findFlag (LongFlag f) [] = throwError $ UnrecognisedLong f
+findFlag :: (CliError e, Monad m) => Arg Parametric -> [FlagSpec e m args] -> ExceptT e m (FlagSpec e m args)
+findFlag (ShortFlag f) [] = throwError $ unrecognisedShort f
+findFlag (LongFlag f) [] = throwError $ unrecognisedLong f
 findFlag flag@(ShortFlag f) (spec@(FlagSpec (OrLeft m) _ _) : specs)
   | f == m = return spec
   | otherwise = findFlag flag specs
@@ -119,16 +117,16 @@ findFlag flag@(LongFlag f) (spec@(FlagSpec (OrBoth _ m) _ _) : specs)
   | otherwise = findFlag flag specs
 findFlag flag (_ : specs) = findFlag flag specs
 
-parseFlag :: Monad m => Arg Parametric -> FlagSpec m args ->
-             args -> [AnyArg] -> ExceptT CliError m (args, [AnyArg])
+parseFlag :: (CliError e, Monad m) => Arg Parametric -> FlagSpec e m args ->
+             args -> [AnyArg] -> ExceptT e m (args, [AnyArg])
 parseFlag _ (FlagSpec _ ArgZ parse) acc args = parse acc <&> flip (,) args
-parseFlag arg (FlagSpec _ (ArgS ty) parse) acc [] = throwError . MissingParam $ show arg
+parseFlag arg (FlagSpec _ (ArgS ty) parse) acc [] = throwError . missingParam $ show arg
 parseFlag arg (FlagSpec f (ArgS ty) parse) acc (AnyArg (Positional p) : args) =
   parseFlag arg (FlagSpec f ty (parse p)) acc args
 parseFlag arg (FlagSpec f (ArgS ty) parse) acc (AnyArg (Dashes len) : args) =
   parseFlag arg (FlagSpec f ty (parse $ replicate len '-')) acc args
 parseFlag arg (FlagSpec _ (ArgS ty) parse) acc (AnyArg _ : _) =
-  throwError . MissingParam $ show arg
+  throwError . missingParam $ show arg
 
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f xs = cmap [] xs
