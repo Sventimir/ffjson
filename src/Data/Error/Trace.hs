@@ -11,53 +11,51 @@ module Data.Error.Trace (
   ofExceptT
 ) where
 
+import Control.Monad.Catch (Exception, SomeException(..))
 import Control.Monad.Except (ExceptT, withExceptT, throwError)
 import Data.List (intercalate)
 
 
-newtype ETrace e = ETrace [e]
+newtype ETrace = ETrace [SomeException]
 
-instance Semigroup (ETrace a) where
+instance Semigroup ETrace where
   (ETrace xs) <> (ETrace ys) = ETrace (xs <> ys)
 
-instance Monoid (ETrace a) where
+instance Monoid ETrace where
   mempty = ETrace []
 
-instance Functor ETrace where
-  fmap f (ETrace es) = ETrace $ fmap f es
-
-instance Show a => Show (ETrace a) where
+instance Show ETrace where
   show (ETrace es) = "Error trace:\n"
     <> (intercalate "\n* " $ fmap show es)
     
 infixr 5 !:
 
-(!:) :: e -> ETrace e -> ETrace e
-e !: (ETrace es) = ETrace (e : es)
+(!:) :: Exception e => e -> ETrace -> ETrace
+e !: (ETrace es) = ETrace (SomeException e : es)
 
-singleError :: e -> ETrace e
-singleError e = ETrace [e]
+singleError :: Exception e => e -> ETrace
+singleError e = ETrace [SomeException e]
 
-type TracedExceptT e m a = ExceptT (ETrace e) m a
+type TracedExceptT m a = ExceptT ETrace m a
 
-type TracedEither e a = Either (ETrace e) a
+type TracedEither a = Either ETrace a
 
-throwLeft :: e -> TracedEither e a
+throwLeft :: Exception e => e -> TracedEither a
 throwLeft = Left . (!: mempty)
 
-addLeft :: e -> TracedEither e a -> TracedEither e a
+addLeft :: Exception e => e -> TracedEither a -> TracedEither a
 addLeft _ ok@(Right _) = ok
 addLeft e (Left es) = Left $ (e !: es)
 
-ofEither :: Either e a -> TracedEither e a
+ofEither :: Exception e => Either e a -> TracedEither a
 ofEither (Right a) = Right a
 ofEither (Left e) = Left $ singleError e
 
-throw :: Monad m => e -> TracedExceptT e m a
+throw :: (Exception e, Monad m) => e -> TracedExceptT m a
 throw = throwError . singleError
 
-addError :: Monad m => e -> TracedExceptT e m a -> TracedExceptT e m a
+addError :: (Exception e, Monad m) => e -> TracedExceptT m a -> TracedExceptT m a
 addError e = withExceptT (e !:)
 
-ofExceptT :: Monad m => ExceptT e m a -> TracedExceptT e m a
+ofExceptT :: (Exception e, Monad m) => ExceptT e m a -> TracedExceptT m a
 ofExceptT = withExceptT singleError

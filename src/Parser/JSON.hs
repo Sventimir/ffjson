@@ -27,7 +27,7 @@ instance ShowErrorComponent ParseError where
 
 type Parser m a = ParsecT ParseError Text m a
 
-parseJSON :: JSON json => Text -> TracedEither (ParseErrorBundle Text ParseError) json
+parseJSON :: JSON json => Text -> TracedEither json
 parseJSON = ofEither . parse json ""
 
 space :: Monad m => Parser m ()

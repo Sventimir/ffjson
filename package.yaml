@@ -16,6 +16,7 @@ description:         Command-line JSON filter and trans tool.
 
 dependencies:
 - base >= 4.7 && < 5
+- exceptions
 - megaparsec
 - mtl
 - text
@@ -33,6 +34,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - exceptions
     - ffjson
     - http-conduit
 
