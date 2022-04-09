@@ -1,10 +1,11 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 module Main where
 
 import Control.Monad ((<=<))
 import Control.Monad.Except (ExceptT(..), liftEither, throwError, runExceptT, withExceptT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
+import Data.Error.Trace (ETrace, TracedExceptT, throw, singleError)
 import Data.Functor ((<&>))
 import Data.Input (Input(..), InputError, Filename)
 import Data.JSON (JSON(..))
@@ -28,10 +29,10 @@ data FFJsonError = UnrecognisedLong String
                  | InputError InputError
                  deriving Show
 
-instance CliError FFJsonError where
-  unrecognisedLong = UnrecognisedLong
-  unrecognisedShort = UnrecognisedShort
-  missingParam = MissingParam
+instance CliError (ETrace FFJsonError) where
+  unrecognisedLong = singleError . UnrecognisedLong
+  unrecognisedShort = singleError . UnrecognisedShort
+  missingParam = singleError . MissingParam
 
 newtype Inputs = Inputs [String]
 
@@ -40,17 +41,17 @@ data Config = Config {
     indentation :: Int
   }
 
-addInput :: Monad m => String -> Config -> ExceptT InputError m Config
+addInput :: Monad m => String -> Config -> TracedExceptT InputError m Config
 addInput fname cfg = parseInput fname <&> \f -> cfg { inputs = f : inputs cfg }
 
 setIndentation :: Int -> Config -> Config
 setIndentation i cfg = cfg { indentation = i }
 
-instance CliArgs FFJsonError Config where
+instance CliArgs (ETrace FFJsonError) Config where
   defaults = Config [] 2
   finalize cfg = return $ cfg { inputs = reverse $ inputs cfg}
-  positional _ = throwError . UnexpectedPositional
-  hyphens _ len = throwError . UnexpectedPositional $ replicate len '-'
+  positional _ = throw . UnexpectedPositional
+  hyphens _ len = throw . UnexpectedPositional $ replicate len '-'
   flags = [
             FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) (\f cfg -> mapError InputError $ addInput f cfg),
             FlagSpec (OrBoth 'r' "raw") ArgZ (return . setIndentation 0),
@@ -69,9 +70,9 @@ main = do
     Left error -> print error
 
 
-mapError :: Monad m => (e -> e') -> ExceptT e m a -> ExceptT e' m a
-mapError f (ExceptT m) = ExceptT $ fmap (mapLeft f) m
+mapError :: Monad m => (e -> e') -> TracedExceptT e m a -> TracedExceptT e' m a
+mapError f (ExceptT m) = ExceptT $ fmap (mapLeft $ fmap f) m
 
 mapLeft :: (l -> l') -> Either l r -> Either l' r
 mapLeft f (Left e) = Left $ f e
-mapLefr _ r = r
+mapLeft _ (Right a) = Right a
