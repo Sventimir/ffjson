@@ -2,11 +2,11 @@
 module Main where
 
 import Control.Monad ((<=<))
-import Control.Monad.Catch (Exception)
+import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.Except (ExceptT(..), liftEither, throwError, runExceptT, withExceptT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
-import Data.Error.Trace (ETrace, TracedExceptT, throw, singleError)
+import Data.Error.Trace (Trace, ExceptTraceT, runExceptTraceT, singleError)
 import Data.Functor ((<&>))
 import Data.Input (Input(..), InputError, Filename)
 import Data.JSON (JSON(..))
@@ -23,19 +23,11 @@ import System.IO (IOMode(..), stdin, withFile)
 import Text.Megaparsec (ParseErrorBundle)
 
 
-data FFJsonError = UnrecognisedLong String
-                 | UnrecognisedShort Char
-                 | MissingParam String
-                 | UnexpectedPositional String
+data FFJsonError = UnexpectedPositional String
                  | InputError InputError
                  deriving Show
 
 instance Exception FFJsonError
-
-instance CliError ETrace where
-  unrecognisedLong = singleError . UnrecognisedLong
-  unrecognisedShort = singleError . UnrecognisedShort
-  missingParam = singleError . MissingParam
 
 newtype Inputs = Inputs [String]
 
@@ -44,17 +36,17 @@ data Config = Config {
     indentation :: Int
   }
 
-addInput :: Monad m => String -> Config -> TracedExceptT m Config
+addInput :: Monad m => String -> Config -> ExceptTraceT m Config
 addInput fname cfg = parseInput fname <&> \f -> cfg { inputs = f : inputs cfg }
 
 setIndentation :: Int -> Config -> Config
 setIndentation i cfg = cfg { indentation = i }
 
-instance CliArgs ETrace Config where
+instance CliArgs (ExceptTraceT IO) Config where
   defaults = Config [] 2
   finalize cfg = return $ cfg { inputs = reverse $ inputs cfg}
-  positional _ = throw . UnexpectedPositional
-  hyphens _ len = throw . UnexpectedPositional $ replicate len '-'
+  positional _ = throwM . UnexpectedPositional
+  hyphens _ len = throwM . UnexpectedPositional $ replicate len '-'
   flags = [
             FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) (\f cfg -> addInput f cfg),
             FlagSpec (OrBoth 'r' "raw") ArgZ (return . setIndentation 0),
@@ -64,7 +56,7 @@ instance CliArgs ETrace Config where
 
 main :: IO ()
 main = do
-  result <- runExceptT $ do
+  result <- runExceptTraceT $ do
     cfg <- cliParser defaults
     jsons <- mapM loadInput (inputs cfg)
     return $ (cfg, array jsons)

@@ -5,6 +5,7 @@ import Test.QuickCheck
 import Data.Text (Text)
 import qualified Data.Text as Text
 
+import Data.Error.Trace (runEitherTrace)
 import Data.JSON
 import Data.JSON.Repr
 import Data.Hash
@@ -20,7 +21,7 @@ main = hspec $ do
     it "parsing after serialisation is an identity" $
       property $ \(Wrapson json) ->
                    let (repr, rollingHash) = json in
-                   case parseJSON $ reprS repr 0 id of
+                   case runEitherTrace . parseJSON $ reprS repr 0 id of
                      Left _ -> False
                      Right json' -> hash rollingHash == hash json'
 

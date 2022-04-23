@@ -4,10 +4,10 @@ module Data.Input (
   Filename
 ) where
 
-import Control.Monad.Except (MonadError, ExceptT, withExceptT, liftEither)
+import Control.Monad.Except (MonadError, ExceptT, withExceptT)
 import Control.Monad.IO.Class (MonadIO(..))
 
-import Data.Error.Trace (TracedExceptT, addError)
+import Data.Error.Trace (ExceptTraceT, liftTrace)
 import Data.JSON (JSON)
 import Data.Text (Text)
 import qualified Data.Text.IO as Text
@@ -24,8 +24,8 @@ data InputError = InvalidInput String
                 deriving Show
 
 class Input i where
-  parseInput :: Monad m => String -> TracedExceptT m i
-  loadInput :: (MonadIO m, JSON j) => i -> TracedExceptT m j
+  parseInput :: Monad m => String -> ExceptTraceT m i
+  loadInput :: (MonadIO m, JSON j) => i -> ExceptTraceT m j
 
 
 newtype Filename = Filename String
@@ -34,9 +34,9 @@ instance Input Filename where
   parseInput = return . Filename
   loadInput (Filename f) = loadFile f >>= parseJson
 
-loadFile :: MonadIO m => String -> TracedExceptT m Text
+loadFile :: MonadIO m => String -> ExceptTraceT m Text
 loadFile "-" = liftIO $ Text.hGetContents stdin
 loadFile fname = liftIO $ withFile fname ReadMode Text.hGetContents
 
-parseJson :: (MonadIO m, JSON json) => Text -> TracedExceptT m json
-parseJson = liftEither . parseJSON
+parseJson :: (MonadIO m, JSON json) => Text -> ExceptTraceT m json
+parseJson = liftTrace . parseJSON

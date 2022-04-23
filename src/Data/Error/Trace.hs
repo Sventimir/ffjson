@@ -1,61 +1,97 @@
 module Data.Error.Trace (
-  ETrace,
-  TracedEither,
-  TracedExceptT,
+  Trace,
+  EitherTrace,
+  ExceptTraceT,
   singleError,
-  addLeft,
-  throwLeft,
+  runEitherTrace,
   ofEither,
-  addError,
-  throw,
-  ofExceptT
+  liftEither,
+  liftTrace,
+  runExceptTraceT
 ) where
 
-import Control.Monad.Catch (Exception, SomeException(..))
-import Control.Monad.Except (ExceptT, withExceptT, throwError)
+import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..))
+import Control.Monad.Except (ExceptT(..), withExceptT, throwError, runExceptT)
+import Control.Monad.IO.Class (MonadIO (..))
+
+import Data.Coerce (coerce)
 import Data.List (intercalate)
 
 
-newtype ETrace = ETrace [SomeException]
+newtype Trace = Trace [SomeException]
 
-instance Semigroup ETrace where
-  (ETrace xs) <> (ETrace ys) = ETrace (xs <> ys)
+instance Semigroup Trace where
+  (Trace xs) <> (Trace ys) = Trace (xs <> ys)
 
-instance Monoid ETrace where
-  mempty = ETrace []
+instance Monoid Trace where
+  mempty = Trace []
 
-instance Show ETrace where
-  show (ETrace es) = "Error trace:\n"
+instance Show Trace where
+  show (Trace es) = "Error trace:\n"
     <> (intercalate "\n* " $ fmap show es)
     
 infixr 5 !:
 
-(!:) :: Exception e => e -> ETrace -> ETrace
-e !: (ETrace es) = ETrace (SomeException e : es)
+(!:) :: Exception e => e -> Trace -> Trace
+e !: (Trace es) = Trace (SomeException e : es)
 
-singleError :: Exception e => e -> ETrace
-singleError e = ETrace [SomeException e]
+singleError :: Exception e => e -> Trace
+singleError e = Trace [SomeException e]
 
-type TracedExceptT m a = ExceptT ETrace m a
+newtype EitherTrace a = EitherTrace (Either Trace a)
 
-type TracedEither a = Either ETrace a
+instance Functor EitherTrace where
+  fmap f = EitherTrace . fmap f . coerce
 
-throwLeft :: Exception e => e -> TracedEither a
-throwLeft = Left . (!: mempty)
+instance Applicative EitherTrace where
+  pure = EitherTrace . pure
+  (EitherTrace f) <*> (EitherTrace e) = EitherTrace (f <*> e)
 
-addLeft :: Exception e => e -> TracedEither a -> TracedEither a
-addLeft _ ok@(Right _) = ok
-addLeft e (Left es) = Left $ (e !: es)
+instance Monad EitherTrace where
+  (EitherTrace (Left e)) >>= _ = EitherTrace $ Left e
+  (EitherTrace (Right a)) >>= f = f a
 
-ofEither :: Exception e => Either e a -> TracedEither a
-ofEither (Right a) = Right a
-ofEither (Left e) = Left $ singleError e
+instance MonadThrow EitherTrace where
+  throwM e = EitherTrace . Left $ singleError e
 
-throw :: (Exception e, Monad m) => e -> TracedExceptT m a
-throw = throwError . singleError
+ofEither :: Exception e => Either e a -> EitherTrace a
+ofEither (Right a) = EitherTrace $ Right a
+ofEither (Left e) = EitherTrace . Left $ singleError e
 
-addError :: (Exception e, Monad m) => e -> TracedExceptT m a -> TracedExceptT m a
-addError e = withExceptT (e !:)
+runEitherTrace :: EitherTrace a -> Either [SomeException] a
+runEitherTrace = coerce
 
-ofExceptT :: (Exception e, Monad m) => ExceptT e m a -> TracedExceptT m a
-ofExceptT = withExceptT singleError
+
+newtype ExceptTraceT m a = ExceptTraceT (ExceptT Trace m a)
+
+instance Functor m => Functor (ExceptTraceT m) where
+  fmap f = ExceptTraceT . fmap f . coerce
+
+instance Monad m => Applicative (ExceptTraceT m) where
+  pure = ExceptTraceT . pure
+  (ExceptTraceT f) <*> (ExceptTraceT e) = ExceptTraceT (f <*> e)
+
+instance Monad m => Monad (ExceptTraceT m) where
+  (ExceptTraceT m) >>= f = ExceptTraceT . ExceptT $ do
+    res <- runExceptT m
+    case res of
+      Left es -> return $ Left es
+      Right a ->
+        let ExceptTraceT m' = f a in
+        runExceptT m'
+
+instance MonadIO m => MonadIO (ExceptTraceT m) where
+  liftIO = ExceptTraceT . ExceptT . fmap Right . liftIO
+
+instance Monad m => MonadThrow (ExceptTraceT m) where
+  throwM = ExceptTraceT . ExceptT . return . Left . singleError
+
+liftTrace :: Monad m => EitherTrace a -> ExceptTraceT m a
+liftTrace = ExceptTraceT . ExceptT . return . coerce
+
+liftEither :: (Monad m, Exception e) => Either e a -> ExceptTraceT m a
+liftEither (Left e) = ExceptTraceT . ExceptT . return . Left $ singleError e
+liftEither (Right a) = ExceptTraceT . ExceptT . return $ Right a
+
+runExceptTraceT :: Monad m => ExceptTraceT m a -> m (Either [SomeException] a)
+runExceptTraceT = runExceptT . withExceptT (\(Trace e) -> e) . coerce

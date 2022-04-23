@@ -6,7 +6,7 @@ module Parser.JSON (
 
 import Prelude hiding (null)
 import Control.Applicative ((<|>), many)
-import Data.Error.Trace (TracedEither, ofEither)
+import Data.Error.Trace (EitherTrace, ofEither)
 import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -27,7 +27,7 @@ instance ShowErrorComponent ParseError where
 
 type Parser m a = ParsecT ParseError Text m a
 
-parseJSON :: JSON json => Text -> TracedEither json
+parseJSON :: JSON json => Text -> EitherTrace json
 parseJSON = ofEither . parse json ""
 
 space :: Monad m => Parser m ()
