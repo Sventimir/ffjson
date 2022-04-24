@@ -6,9 +6,9 @@ import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.Except (ExceptT(..), liftEither, throwError, runExceptT, withExceptT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
-import Data.Error.Trace (Trace, ExceptTraceT, runExceptTraceT, singleError)
+import Data.Error.Trace (Trace, ExceptTraceT, runExceptTraceT, singleError, liftTrace)
 import Data.Functor ((<&>))
-import Data.Input (Input(..), InputError, Filename)
+import Data.Input (Input(..), InputError, parseInput, loadInput)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (reprS)
 import Data.List (replicate, reverse)
@@ -25,14 +25,13 @@ import Text.Megaparsec (ParseErrorBundle)
 
 data FFJsonError = UnexpectedPositional String
                  | InputError InputError
+                 | ParseError (ParseErrorBundle Text ParseError)
                  deriving Show
 
 instance Exception FFJsonError
 
-newtype Inputs = Inputs [String]
-
 data Config = Config {
-    inputs :: [Filename],
+    inputs :: [Input],
     indentation :: Int
   }
 
@@ -53,14 +52,16 @@ instance CliArgs (ExceptTraceT IO) Config where
             FlagSpec (OrRight "indent") (ArgS ArgZ) (\i -> return . setIndentation (read i))
           ]
 
+parseJson :: (MonadIO m, JSON json) => Text -> ExceptTraceT m json
+parseJson = liftTrace . parseJSON
+
 
 main :: IO ()
 main = do
   result <- runExceptTraceT $ do
     cfg <- cliParser defaults
-    jsons <- mapM loadInput (inputs cfg)
+    jsons <- mapM (parseJson <=< loadInput) (inputs cfg)
     return $ (cfg, array jsons)
   case result of
     Right (cfg, json) -> Text.putStrLn $ reprS json (indentation cfg) id
     Left error -> print error
-

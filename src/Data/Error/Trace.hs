@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Data.Error.Trace (
   Trace,
   EitherTrace,
@@ -10,6 +11,7 @@ module Data.Error.Trace (
   runExceptTraceT
 ) where
 
+import Control.Applicative (Alternative(..))
 import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..))
 import Control.Monad.Except (ExceptT(..), withExceptT, throwError, runExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
@@ -29,6 +31,9 @@ instance Monoid Trace where
 instance Show Trace where
   show (Trace es) = "Error trace:\n"
     <> (intercalate "\n* " $ fmap show es)
+
+instance Monad m => MonadThrow (ExceptT Trace m) where
+  throwM = throwError . singleError
     
 infixr 5 !:
 
@@ -70,6 +75,10 @@ instance Functor m => Functor (ExceptTraceT m) where
 instance Monad m => Applicative (ExceptTraceT m) where
   pure = ExceptTraceT . pure
   (ExceptTraceT f) <*> (ExceptTraceT e) = ExceptTraceT (f <*> e)
+
+instance Monad m => Alternative (ExceptTraceT m) where
+  empty = ExceptTraceT . ExceptT . return . Left $ Trace []
+  (ExceptTraceT ma) <|> (ExceptTraceT mb) = ExceptTraceT (ma <|> mb)
 
 instance Monad m => Monad (ExceptTraceT m) where
   (ExceptTraceT m) >>= f = ExceptTraceT . ExceptT $ do

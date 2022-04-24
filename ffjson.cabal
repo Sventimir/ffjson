@@ -56,6 +56,7 @@ executable ffjson-exe
     , exceptions
     , ffjson
     , http-conduit
+    , http-types
     , megaparsec
     , mtl
     , text

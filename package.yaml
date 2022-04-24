@@ -37,6 +37,7 @@ executables:
     - exceptions
     - ffjson
     - http-conduit
+    - http-types
 
 tests:
   ffjson-test:
