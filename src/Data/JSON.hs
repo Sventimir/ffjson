@@ -26,4 +26,3 @@ instance (JSON a, JSON b) => JSON (a, b) where
         (xs, ys) = unzip js in
     (obj (zip lbls xs), obj (zip lbls ys))
     
-

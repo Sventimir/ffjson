@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables #-}
 module Main where
 
 import Control.Monad ((<=<))
@@ -8,7 +8,8 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 
 import Data.Error.Trace (Trace, ExceptTraceT, runExceptTraceT, singleError, liftTrace)
 import Data.Functor ((<&>))
-import Data.Input (Input(..), InputError, parseInput, loadInput)
+import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyInputs,
+                   namedInputs, addInput)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (reprS)
 import Data.List (replicate, reverse)
@@ -31,23 +32,25 @@ data FFJsonError = UnexpectedPositional String
 instance Exception FFJsonError
 
 data Config = Config {
-    inputs :: [Input],
+    inputs :: Inputs,
     indentation :: Int
   }
-
-addInput :: Monad m => String -> Config -> ExceptTraceT m Config
-addInput fname cfg = parseInput fname <&> \f -> cfg { inputs = f : inputs cfg }
 
 setIndentation :: Int -> Config -> Config
 setIndentation i cfg = cfg { indentation = i }
 
+selectInput :: String -> Config -> ExceptTraceT IO Config
+selectInput flag cfg = do
+  inp <- parseInput flag
+  return $ cfg { inputs = addInput Nothing inp $ inputs cfg }
+
 instance CliArgs (ExceptTraceT IO) Config where
-  defaults = Config [] 2
-  finalize cfg = return $ cfg { inputs = reverse $ inputs cfg}
+  defaults = Config emptyInputs 2
+  finalize = return
   positional _ = throwM . UnexpectedPositional
   hyphens _ len = throwM . UnexpectedPositional $ replicate len '-'
   flags = [
-            FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) (\f cfg -> addInput f cfg),
+            FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) (\f cfg -> selectInput f cfg),
             FlagSpec (OrBoth 'r' "raw") ArgZ (return . setIndentation 0),
             FlagSpec (OrRight "indent") (ArgS ArgZ) (\i -> return . setIndentation (read i))
           ]
@@ -60,8 +63,15 @@ main :: IO ()
 main = do
   result <- runExceptTraceT $ do
     cfg <- cliParser defaults
-    jsons <- mapM (parseJson <=< loadInput) (inputs cfg)
-    return $ (cfg, array jsons)
+    jsons <- assocMapM (parseJson <=< loadInput) (namedInputs $ inputs cfg)
+    return $ (cfg, obj jsons)
   case result of
     Right (cfg, json) -> Text.putStrLn $ reprS json (indentation cfg) id
     Left error -> print error
+
+assocMapM :: forall m a b k . Monad m => (a -> m b) -> [(k, a)] -> m [(k, b)]
+assocMapM f lst = assocMap [] lst
+  where
+  assocMap :: [(k, b)] -> [(k, a)] -> m [(k, b)]
+  assocMap acc [] = return $ reverse acc
+  assocMap acc ((k, a) : more) = f a >>= \b -> assocMap ((k, b) : acc) more

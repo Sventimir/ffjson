@@ -2,6 +2,10 @@
 module Data.Input (
   Input(..),
   InputError(..),
+  Inputs(Inputs),
+  emptyInputs,
+  namedInputs,
+  addInput,
   loadInput,
   parseInput
 ) where
@@ -13,7 +17,11 @@ import Control.Monad.IO.Class (MonadIO(..))
 
 import Data.Error.Trace (ExceptTraceT, liftTrace)
 import Data.JSON (JSON)
-import Data.Text (Text)
+import Data.List (minimum)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe (catMaybes)
+import Data.Text (Text, pack)
 import qualified Data.Text.IO as Text
 import Data.Text.Encoding (decodeUtf8)
 
@@ -53,3 +61,29 @@ loadFile :: MonadIO m => String -> ExceptTraceT m Text
 loadFile "-" = liftIO $ Text.hGetContents stdin
 loadFile fname = liftIO $ withFile fname ReadMode Text.hGetContents
 
+
+newtype Inputs = Inputs (Map String Input)
+
+emptyInputs :: Inputs
+emptyInputs = Inputs Map.empty
+
+nextDefaultKey :: Inputs -> String
+nextDefaultKey (Inputs m) = firstFreeKey 0 m
+  where
+  firstFreeKey :: Int -> Map String Input -> String
+  firstFreeKey i m
+    | Map.member (show i) m = firstFreeKey (succ i) m
+    | otherwise = show i
+
+addInput :: Maybe String -> Input -> Inputs -> Inputs
+addInput Nothing input ins@(Inputs map) =
+  let key = nextDefaultKey ins in
+  Inputs $ Map.insert key input map
+addInput (Just key) input (Inputs map) =
+  Inputs $ Map.insert key input map
+
+namedInputs :: Inputs -> [(Text, Input)]
+namedInputs (Inputs m) = map packKey $ Map.toList m
+  where
+  packKey :: (String, a) -> (Text, a)
+  packKey (k, v) = (pack k, v)
