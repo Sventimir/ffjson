@@ -11,6 +11,7 @@ import Data.Functor ((<&>))
 import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyInputs,
                    namedInputs, addInput)
 import Data.JSON (JSON(..))
+import Data.JSON.AST (JsonAst, toJSON)
 import Data.JSON.Repr (reprS)
 import Data.List (replicate, reverse)
 import Data.Text (Text)
@@ -76,7 +77,7 @@ instance CliArgs (ExceptTraceT IO) Config where
               (\i -> return . setIndentation (read i) . finalizeInput)
           ]
 
-parseJson :: (MonadIO m, JSON json) => Text -> ExceptTraceT m json
+parseJson :: MonadIO m => Text -> ExceptTraceT m JsonAst
 parseJson = liftTrace . parseJSON
 
 
@@ -84,7 +85,7 @@ main :: IO ()
 main = do
   result <- runExceptTraceT $ do
     cfg <- cliParser defaults
-    jsons <- assocMapM (parseJson <=< loadInput) (namedInputs $ inputs cfg)
+    jsons <- assocMapM (fmap toJSON . parseJson <=< loadInput) (namedInputs $ inputs cfg)
     return $ (cfg, obj jsons)
   case result of
     Right (cfg, json) -> Text.putStrLn $ reprS json (indentation cfg) id

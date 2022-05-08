@@ -27,6 +27,7 @@ library
       Data.Error.Trace
       Data.Hash
       Data.JSON
+      Data.JSON.AST
       Data.JSON.Repr
       Parser.CLI
       Parser.JSON
