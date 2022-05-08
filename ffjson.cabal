@@ -50,6 +50,7 @@ executable ffjson-exe
   other-modules:
       Data.Input
       Data.JsonStream
+      Data.Output
       Paths_ffjson
   hs-source-dirs:
       app

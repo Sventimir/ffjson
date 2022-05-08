@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes #-}
 module Main where
 
-import Control.Monad (foldM)
+import Control.Monad (foldM, forM_)
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.Except (ExceptT(..), liftEither, throwError, runExceptT, withExceptT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -12,16 +12,17 @@ import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyIn
                    namedInputs, addInput)
 import Data.JSON (JSON(..), JsonStream(..))
 import Data.JSON.AST (JsonAst, toJSON)
-import Data.JSON.Repr (reprS)
-import Data.JsonStream (Streamset, emptyStreamset, addStream, toObject)
+import Data.JSON.Repr (Repr, reprS)
+import Data.JsonStream (Streamset, emptyStreamset, addStream, getStream, toObject)
 import Data.List (replicate, reverse)
+import Data.Output (Output(..), parseOutput)
 import Data.Text (Text)
 import qualified Data.Text.IO as Text
 
 import Parser.JSON (parseJSON, ParseError)
 import Parser.CLI (CliArgs(..), CliError(..), FlagSpec(..), Or(..), Consume(..), cliParser)
 
-import System.IO (IOMode(..), stdin, withFile)
+import System.IO (FilePath, IOMode(..), Handle, stdin, withFile)
 
 import Text.Megaparsec (ParseErrorBundle)
 
@@ -38,11 +39,15 @@ instance Exception FFJsonError
 data Config = Config {
     currentInput :: Maybe (Maybe String, Input),
     inputs :: Inputs,
+    outputs :: [Output],
     indentation :: Int
   }
 
 setIndentation :: Int -> Config -> Config
 setIndentation i cfg = cfg { indentation = i }
+
+addOutput :: String -> Config -> Config
+addOutput out cfg = (finalizeInput cfg) { outputs = parseOutput out : outputs cfg }
 
 addNewInput :: String -> Config -> ExceptTraceT IO Config
 addNewInput flag cfg = do
@@ -64,13 +69,14 @@ finalizeInput cfg = case currentInput cfg of
     }
 
 instance CliArgs (ExceptTraceT IO) Config where
-  defaults = Config Nothing emptyInputs 2
+  defaults = Config Nothing emptyInputs [] 2
   finalize = return . finalizeInput
   positional _ = throwM . UnexpectedPositional
   hyphens _ len = throwM . UnexpectedPositional $ replicate len '-'
   flags = [
-            FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) (\f cfg -> addNewInput f cfg),
+            FlagSpec (OrBoth 'i' "input") (ArgS ArgZ) addNewInput,
             FlagSpec (OrBoth 'n' "name") (ArgS ArgZ) setInputName,
+            FlagSpec (OrBoth 'o' "output") (ArgS ArgZ) (\f cfg -> return $ addOutput f cfg),
             FlagSpec (OrBoth 'r' "raw") ArgZ (return . setIndentation 0 . finalizeInput),
             FlagSpec
               (OrRight "indent")
@@ -83,9 +89,9 @@ main = do
   result <- runExceptTraceT $ do
     cfg <- cliParser defaults
     jsons <- foldM readJson emptyStreamset . namedInputs $ inputs cfg
-    return $ (cfg, toObject jsons)
+    return $ (cfg, jsons)
   case result of
-    Right (cfg, json) -> Text.putStrLn $ reprS json (indentation cfg) id
+    Right (cfg, json) -> forM_ (outputs cfg) (outputJson (indentation cfg) json)
     Left error -> print error
 
 readJson :: Streamset -> (Text, Input) -> ExceptTraceT IO Streamset
@@ -96,3 +102,11 @@ readJson streams (k, input) = do
 parseJson :: MonadIO m => Text -> (forall j. JSON j => ExceptTraceT m j)
 parseJson = liftTrace . parseJSON
 
+outputJson :: Int -> Streamset -> Output -> IO ()
+outputJson indent streamset (Output key filename) =
+   case getStream key streamset of
+     Nothing -> return ()
+     Just json -> withFile filename WriteMode $ write indent json
+
+write :: Int -> Repr Text -> Handle -> IO ()
+write indent json fd = Text.hPutStrLn fd (reprS json indent id)
