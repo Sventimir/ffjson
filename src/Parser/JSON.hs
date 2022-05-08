@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes #-}
 module Parser.JSON (
   ParseError(..),
   parseJSON
@@ -7,7 +7,7 @@ module Parser.JSON (
 import Prelude hiding (null)
 import Control.Applicative ((<|>), many)
 import Data.Error.Trace (EitherTrace, ofEither)
-import Data.JSON (JSON(..))
+import Data.JSON (JSON(..), JsonStream(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Text.Megaparsec (ParsecT, ParseErrorBundle, empty, between, anySingleBut,
@@ -27,7 +27,7 @@ instance ShowErrorComponent ParseError where
 
 type Parser m a = ParsecT ParseError Text m a
 
-parseJSON :: JSON json => Text -> EitherTrace json
+parseJSON :: JSON j => Text -> EitherTrace j
 parseJSON = ofEither . parse json ""
 
 space :: Monad m => Parser m ()
@@ -79,3 +79,7 @@ json = fmap str string <|> number <|> constants <|> arr <|> object
 
 quoted :: Monad m => Parser m a -> Parser m a
 quoted = between (char '"') (char '"')
+
+
+someJSON :: JsonStream
+someJSON = JsonStream $ obj []

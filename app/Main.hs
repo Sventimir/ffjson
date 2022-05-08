@@ -1,7 +1,7 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes #-}
 module Main where
 
-import Control.Monad ((<=<))
+import Control.Monad (foldM)
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.Except (ExceptT(..), liftEither, throwError, runExceptT, withExceptT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -10,9 +10,10 @@ import Data.Error.Trace (Trace, ExceptTraceT, runExceptTraceT, singleError, lift
 import Data.Functor ((<&>))
 import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyInputs,
                    namedInputs, addInput)
-import Data.JSON (JSON(..))
+import Data.JSON (JSON(..), JsonStream(..))
 import Data.JSON.AST (JsonAst, toJSON)
 import Data.JSON.Repr (reprS)
+import Data.JsonStream (Streamset, emptyStreamset, addStream, toObject)
 import Data.List (replicate, reverse)
 import Data.Text (Text)
 import qualified Data.Text.IO as Text
@@ -77,23 +78,21 @@ instance CliArgs (ExceptTraceT IO) Config where
               (\i -> return . setIndentation (read i) . finalizeInput)
           ]
 
-parseJson :: MonadIO m => Text -> ExceptTraceT m JsonAst
-parseJson = liftTrace . parseJSON
-
-
 main :: IO ()
 main = do
   result <- runExceptTraceT $ do
     cfg <- cliParser defaults
-    jsons <- assocMapM (fmap toJSON . parseJson <=< loadInput) (namedInputs $ inputs cfg)
-    return $ (cfg, obj jsons)
+    jsons <- foldM readJson emptyStreamset . namedInputs $ inputs cfg
+    return $ (cfg, toObject jsons)
   case result of
     Right (cfg, json) -> Text.putStrLn $ reprS json (indentation cfg) id
     Left error -> print error
 
-assocMapM :: forall m a b k . Monad m => (a -> m b) -> [(k, a)] -> m [(k, b)]
-assocMapM f lst = assocMap [] lst
-  where
-  assocMap :: [(k, b)] -> [(k, a)] -> m [(k, b)]
-  assocMap acc [] = return $ reverse acc
-  assocMap acc ((k, a) : more) = f a >>= \b -> assocMap ((k, b) : acc) more
+readJson :: Streamset -> (Text, Input) -> ExceptTraceT IO Streamset
+readJson streams (k, input) = do
+  v <- loadInput input >>= parseJson
+  return $ addStream k (toJSON v) streams
+
+parseJson :: MonadIO m => Text -> (forall j. JSON j => ExceptTraceT m j)
+parseJson = liftTrace . parseJSON
+

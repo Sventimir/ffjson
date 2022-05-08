@@ -1,6 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GADTs, OverloadedStrings, RankNTypes #-}
 module Data.JSON (
-  JSON(..)
+  JSON(..),
+  JsonStream(..),
+  unstream
 ) where
 -- A tagless final form of JSON expressions.
 
@@ -25,4 +27,9 @@ instance (JSON a, JSON b) => JSON (a, b) where
     let (lbls, js) = unzip kvs
         (xs, ys) = unzip js in
     (obj (zip lbls xs), obj (zip lbls ys))
-    
+
+-- An existential wrapper to deal with polymorphic JSON values.
+newtype JsonStream = JsonStream (forall json . JSON json => json)
+
+unstream :: JSON j => JsonStream -> j
+unstream (JsonStream j) = j

@@ -49,6 +49,7 @@ executable ffjson-exe
   main-is: Main.hs
   other-modules:
       Data.Input
+      Data.JsonStream
       Paths_ffjson
   hs-source-dirs:
       app
