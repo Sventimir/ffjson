@@ -1,7 +1,16 @@
 {-# LANGUAGE OverloadedStrings, RankNTypes #-}
 module Parser.JSON (
+  Parser,
   ParseError(..),
-  parseJSON
+  parseJSON,
+  lexeme,
+  string,
+  number,
+  constants,
+  punctuation,
+  array,
+  object,
+  json
 ) where
 
 import Prelude hiding (null)

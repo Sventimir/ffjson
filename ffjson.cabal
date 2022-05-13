@@ -29,6 +29,7 @@ library
       Data.JSON
       Data.JSON.AST
       Data.JSON.Repr
+      Language.Object
       Parser.CLI
       Parser.JSON
   other-modules:
@@ -48,6 +49,7 @@ library
 executable ffjson-exe
   main-is: Main.hs
   other-modules:
+      Data.Filter
       Data.Input
       Data.JsonStream
       Data.Output

@@ -5,10 +5,11 @@ module Data.Error.Trace (
   ExceptTraceT,
   singleError,
   runEitherTrace,
+  eitherJustTrace,
   ofEither,
   liftEither,
   liftTrace,
-  runExceptTraceT
+  runExceptTraceT,
 ) where
 
 import Control.Applicative (Alternative(..))
@@ -62,6 +63,10 @@ instance MonadThrow EitherTrace where
 ofEither :: Exception e => Either e a -> EitherTrace a
 ofEither (Right a) = EitherTrace $ Right a
 ofEither (Left e) = EitherTrace . Left $ singleError e
+
+eitherJustTrace :: Exception e => e -> Maybe a -> EitherTrace a
+eitherJustTrace exn Nothing = throwM exn
+eitherJustTrace _ (Just a) = return a
 
 runEitherTrace :: EitherTrace a -> Either [SomeException] a
 runEitherTrace = coerce
