@@ -47,10 +47,9 @@ parse = ofEither . Megaparsec.parse parser ""
 parser :: Monad m => Parser m Filter
 parser = do
   inputKey <- fmap (fromMaybe "0") $ optional key
-  exprs <- some Lang.parser
+  expr <- Lang.parser
   outputKey <- fmap (fromMaybe "0") $ optional key
-  case exprs of
-    (e : es) -> return . Filter inputKey outputKey $ foldl compose e es
+  return $ Filter inputKey outputKey expr
 
 key :: Monad m => Parser m Text
 key = between

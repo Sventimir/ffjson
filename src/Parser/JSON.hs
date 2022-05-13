@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes, ScopedTypeVariables #-}
 module Parser.JSON (
   Parser,
   ParseError(..),
@@ -16,6 +16,7 @@ module Parser.JSON (
 import Prelude hiding (null)
 import Control.Applicative ((<|>), many)
 import Data.Error.Trace (EitherTrace, ofEither)
+import Data.Function (fix)
 import Data.JSON (JSON(..), JsonStream(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -37,7 +38,7 @@ instance ShowErrorComponent ParseError where
 type Parser m a = ParsecT ParseError Text m a
 
 parseJSON :: JSON j => Text -> EitherTrace j
-parseJSON = ofEither . parse json ""
+parseJSON = ofEither . parse (fix json) ""
 
 space :: Monad m => Parser m ()
 space = Lexer.space space1 empty empty
@@ -63,28 +64,28 @@ constants = lexeme $
   where
   readAs repr val = chunk repr >> return val
 
-arr :: (JSON j, Monad m) => Parser m j
-arr = lexeme $ do
+arr :: (JSON j, Monad m) => Parser m j -> Parser m j
+arr self = lexeme $ do
   elems <- between (punctuation '[') (punctuation ']')
-    $ sepBy json (punctuation ',')
+    $ sepBy self (punctuation ',')
   return $ array elems
 
-object :: (JSON j, Monad m) => Parser m j
-object = lexeme $ do
+object :: forall j m. (JSON j, Monad m) => Parser m j -> Parser m j
+object self = lexeme $ do
   elems <- between (punctuation '{') (punctuation '}')
     $ sepBy keyValuePair (punctuation ',')
   return $ obj elems
   where
-  keyValuePair :: (JSON j, Monad m) => Parser m (Text, j)
+  keyValuePair :: Parser m (Text, j)
   keyValuePair = do
     key <- string
     lexeme $ char ':'
-    value <- json
+    value <- self
     return (key, value)
 
 
-json :: (JSON j, Monad m) => Parser m j
-json = fmap str string <|> number <|> constants <|> arr <|> object
+json :: (JSON j, Monad m) => Parser m j -> Parser m j
+json self = fmap str string <|> number <|> constants <|> arr self <|> object self
 
 quoted :: Monad m => Parser m a -> Parser m a
 quoted = between (char '"') (char '"')

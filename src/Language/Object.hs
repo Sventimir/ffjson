@@ -26,6 +26,9 @@ import Text.Megaparsec (some)
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (char, alphaNumChar)
 
+class Composable c where
+  compose :: c -> c -> c
+
 class JSON j => Object j where
   get :: Text -> j
 
@@ -54,8 +57,8 @@ instance JSON Eval where
 instance Object Eval where
   get key = Eval $ getAst key
 
-compose :: Eval -> Eval -> Eval
-compose (Eval l) (Eval r) = Eval (l >=> r)
+instance Composable Eval where
+  compose (Eval l) (Eval r) = Eval (l >=> r)
 
 getAst :: Text -> JsonAst -> EitherTrace JsonAst
 getAst key (JObject kvs) = return . fromMaybe null . fmap toJSON $ find key kvs
@@ -71,11 +74,14 @@ find key ((k, v) : more)
   | otherwise = find key more
 
 
-parse :: Object o => Text -> EitherTrace o
+parse :: (Composable o, Object o) => Text -> EitherTrace o
 parse = ofEither . Megaparsec.parse parser ""
 
-parser :: (Monad m, Object o) => Parser m o
-parser = JsonParser.json <|> getObject
+parser :: (Monad m, Composable o, Object o) => Parser m o
+parser = do
+  exprs <- some (JsonParser.json parser <|> getObject)
+  case exprs of
+    (e : es) -> return $ foldl compose e es
 
 
 getObject :: (Monad m, Object o) => Parser m o
