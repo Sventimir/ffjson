@@ -4,6 +4,7 @@ module Data.Input (
   InputError(..),
   Inputs(Inputs),
   emptyInputs,
+  isEmptyInputs,
   namedInputs,
   addInput,
   loadInput,
@@ -66,6 +67,9 @@ newtype Inputs = Inputs (Map String Input)
 
 emptyInputs :: Inputs
 emptyInputs = Inputs Map.empty
+
+isEmptyInputs :: Inputs -> Bool
+isEmptyInputs (Inputs m) = Map.null m
 
 nextDefaultKey :: Inputs -> String
 nextDefaultKey (Inputs m) = firstFreeKey 0 m

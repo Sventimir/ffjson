@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, RankNTypes #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, OverloadedStrings #-}
 module Main where
 
 import Control.Monad (foldM, forM_)
@@ -11,8 +11,8 @@ import Data.Filter (Filter)
 import qualified Data.Filter as Filter
 import Data.Functor ((<&>))
 import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyInputs,
-                   namedInputs, addInput)
-import Data.JSON (JSON(..), JsonStream(..))
+                   namedInputs, addInput, isEmptyInputs)
+import Data.JSON (JSON, JsonStream(..))
 import Data.JSON.AST (JsonAst, toJSON)
 import Data.JSON.Repr (Repr, reprS)
 import Data.JsonStream (Streamset, emptyStreamset, addStream, getStream, toObject)
@@ -80,7 +80,19 @@ finalizeInput cfg = case currentInput cfg of
 
 instance CliArgs (ExceptTraceT IO) Config where
   defaults = Config Nothing emptyInputs [] [] 2
-  finalize cfg = return $ (finalizeInput cfg) { filters = reverse $ filters cfg }
+  finalize cfg =
+    let cfg' = finalizeInput cfg
+        ins = if isEmptyInputs $ inputs cfg'
+              then addInput (Just "0") (FileInput "/dev/stdin") emptyInputs
+              else inputs cfg'
+        outs = if null $ outputs cfg'
+               then [Output "0" "/dev/stdout"]
+               else outputs cfg' in
+    return $ (finalizeInput cfg) {
+        inputs = ins,
+        filters = reverse $ filters cfg,
+        outputs = outs
+      }
   positional _ = throwM . UnexpectedPositional
   hyphens _ len = throwM . UnexpectedPositional $ replicate len '-'
   flags = [
@@ -111,7 +123,7 @@ readJson streams (k, input) = do
   v <- loadInput input >>= parseJson
   return $ addStream k (toJSON v) streams
 
-parseJson :: MonadIO m => Text -> (forall j. JSON j => ExceptTraceT m j)
+parseJson :: (JSON j, MonadIO m) => Text -> ExceptTraceT m j
 parseJson = liftTrace . parseJSON
 
 outputJson :: Int -> Streamset -> Output -> IO ()
