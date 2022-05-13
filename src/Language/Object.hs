@@ -2,6 +2,7 @@
 module Language.Object (
   Object(..),
   Eval,
+  compose,
   eval,
   parser,
   parse
@@ -10,6 +11,7 @@ module Language.Object (
 import Prelude hiding (null)
 
 import Control.Applicative (Alternative((<|>)))
+import Control.Monad ((>=>))
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Data.Error.Trace (EitherTrace, ofEither)
 import Data.JSON (JSON(..))
@@ -52,6 +54,9 @@ instance JSON Eval where
 instance Object Eval where
   get key = Eval $ getAst key
 
+compose :: Eval -> Eval -> Eval
+compose (Eval l) (Eval r) = Eval (l >=> r)
+
 getAst :: Text -> JsonAst -> EitherTrace JsonAst
 getAst key (JObject kvs) = return . fromMaybe null . fmap toJSON $ find key kvs
 getAst _ json = throwM $ NotAnObject json
@@ -76,6 +81,6 @@ parser = JsonParser.json <|> getObject
 getObject :: (Monad m, Object o) => Parser m o
 getObject = do
   lexeme $ char '.'
-  key <- some alphaNumChar
+  key <- lexeme $ some alphaNumChar
   return . get $ pack key
   

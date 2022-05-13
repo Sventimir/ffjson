@@ -13,12 +13,12 @@ import Data.JSON.AST (JsonAst)
 import Data.JsonStream (Streamset, getStream, addStream)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
-import Language.Object (Eval, eval)
+import Language.Object (Eval, eval, compose)
 import qualified Language.Object as Lang
 
 import Parser.JSON (Parser, lexeme, punctuation)
 
-import Text.Megaparsec (between, optional, some)
+import Text.Megaparsec (between, many, optional, some)
 import Text.Megaparsec.Char (char, alphaNumChar)
 import qualified Text.Megaparsec as Megaparsec
 
@@ -47,10 +47,10 @@ parse = ofEither . Megaparsec.parse parser ""
 parser :: Monad m => Parser m Filter
 parser = do
   inputKey <- fmap (fromMaybe "0") $ optional key
-  expr <- Lang.parser
+  exprs <- some Lang.parser
   outputKey <- fmap (fromMaybe "0") $ optional key
-  return $ Filter inputKey outputKey expr
-
+  case exprs of
+    (e : es) -> return . Filter inputKey outputKey $ foldl compose e es
 
 key :: Monad m => Parser m Text
 key = between
