@@ -79,7 +79,8 @@ parse = ofEither . Megaparsec.parse parser ""
 
 parser :: (Monad m, Composable o, Object o) => Parser m o
 parser = do
-  exprs <- some (JsonParser.json parser <|> getObject)
+  exprs <- fmap (:[]) (JsonParser.json parser) <|> some getObject
+  -- parsers above are guaranteed to return a non-empty list.
   case exprs of
     (e : es) -> return $ foldl compose e es
 
