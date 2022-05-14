@@ -13,7 +13,8 @@ import Data.JSON.AST (JsonAst)
 import Data.JsonStream (Streamset, getStream, addStream)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
-import Language.Object (Eval, eval, compose)
+import Language.Eval (Eval, eval)
+import Language.Object (Composable(..))
 import qualified Language.Object as Lang
 
 import Parser.JSON (Parser, lexeme, punctuation)

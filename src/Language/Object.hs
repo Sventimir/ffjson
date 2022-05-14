@@ -1,9 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 module Language.Object (
+  Composable(..),
   Object(..),
-  Eval,
-  compose,
-  eval,
+  getAst,
   parser,
   parse
 ) where
@@ -11,7 +10,6 @@ module Language.Object (
 import Prelude hiding (null)
 
 import Control.Applicative (Alternative((<|>)))
-import Control.Monad ((>=>))
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Data.Error.Trace (EitherTrace, ofEither)
 import Data.JSON (JSON(..))
@@ -26,46 +24,24 @@ import Text.Megaparsec (some)
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (char, alphaNumChar)
 
+
 class Composable c where
   compose :: c -> c -> c
 
 class JSON j => Object j where
   get :: Text -> j
 
-data EvalError = NotAnObject JsonAst
 
-instance Show EvalError where
+data ObjectError = NotAnObject JsonAst
+
+instance Show ObjectError where
   show (NotAnObject j) = "Not an object: '" ++ show (toJSON j :: Repr String) ++ "'!"
 
-instance Exception EvalError where
-
-
-newtype Eval = Eval (JsonAst -> EitherTrace JsonAst)
-
-eval :: Eval -> JsonAst -> EitherTrace JsonAst
-eval (Eval f) json = f json
-
-instance JSON Eval where
-  str s = Eval (mconst $ str s)
-  num n = Eval (mconst $ num n)
-  bool b = Eval (mconst $ bool b)
-  null = Eval (mconst null)
-  array js = Eval (\j -> fmap array $ mapM (\(Eval f) -> f j) js)
-  obj kvs = Eval (\j -> fmap obj $ mapM (\(k, Eval f) -> fmap ((,) k) $ f j) kvs)
-
-
-instance Object Eval where
-  get key = Eval $ getAst key
-
-instance Composable Eval where
-  compose (Eval l) (Eval r) = Eval (l >=> r)
+instance Exception ObjectError where
 
 getAst :: Text -> JsonAst -> EitherTrace JsonAst
 getAst key (JObject kvs) = return . fromMaybe null . fmap toJSON $ find key kvs
 getAst _ json = throwM $ NotAnObject json
-
-mconst :: Monad m => a -> b -> m a
-mconst = const . return
 
 find :: Eq a => a -> [(a, b)] -> Maybe b
 find _ [] = Nothing

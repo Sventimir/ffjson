@@ -29,6 +29,7 @@ library
       Data.JSON
       Data.JSON.AST
       Data.JSON.Repr
+      Language.Eval
       Language.Object
       Parser.CLI
       Parser.JSON
