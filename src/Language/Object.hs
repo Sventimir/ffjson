@@ -1,8 +1,8 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Language.Object (
-  Composable(..),
   Object(..),
   getAst,
+  keysAst,
   parser,
   parse
 ) where
@@ -18,6 +18,8 @@ import Data.JSON.Repr (Repr)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 
+import Language.Core(Composable(..))
+
 import Parser.JSON (Parser, lexeme)
 import qualified Parser.JSON as JsonParser
 import Text.Megaparsec (some)
@@ -25,11 +27,9 @@ import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (char, alphaNumChar)
 
 
-class Composable c where
-  compose :: c -> c -> c
-
 class JSON j => Object j where
   get :: Text -> j
+  keys :: j
 
 
 data ObjectError = NotAnObject JsonAst
@@ -49,21 +49,28 @@ find key ((k, v) : more)
   | k == key = Just v
   | otherwise = find key more
 
+keysAst :: JsonAst -> EitherTrace JsonAst
+keysAst (JObject kvs) = return . array $ map (str . fst) kvs
+keysAst json = throwM $ NotAnObject json
+
 
 parse :: (Composable o, Object o) => Text -> EitherTrace o
 parse = ofEither . Megaparsec.parse parser ""
 
 parser :: (Monad m, Composable o, Object o) => Parser m o
-parser = do
-  exprs <- fmap (:[]) (JsonParser.json parser) <|> some getObject
-  -- parsers above are guaranteed to return a non-empty list.
-  case exprs of
-    (e : es) -> return $ foldl compose e es
+parser = JsonParser.json parser <|> getObject <|> objectKeys
 
 
-getObject :: (Monad m, Object o) => Parser m o
+getObject :: (Monad m, Composable o, Object o) => Parser m o
 getObject = do
-  lexeme $ char '.'
-  key <- lexeme $ some alphaNumChar
-  return . get $ pack key
+  -- the parser below is guaranteed to return a none-empty list.
+  e : es <- some $ do
+    lexeme $ char '.'
+    key <- lexeme $ some alphaNumChar
+    return . get $ pack key
+  return $ foldl compose e es
   
+objectKeys :: (Monad m, Object o) => Parser m o
+objectKeys = do
+  lexeme $ Megaparsec.chunk "keys"
+  return keys

@@ -21,8 +21,8 @@ import Data.Output (Output(..), parseOutput)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as Text
 
+import Language.Core (Composable(..))
 import Language.Eval (Eval, eval)
-import Language.Object (Composable(..))
 
 import Parser.JSON (parseJSON, ParseError)
 import Parser.CLI (CliArgs(..), CliError(..), FlagSpec(..), Or(..), Consume(..), cliParser)

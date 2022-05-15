@@ -14,7 +14,7 @@ import Data.JsonStream (Streamset, getStream, addStream)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import Language.Eval (Eval, eval)
-import Language.Object (Composable(..))
+import Language.Core (Composable(..))
 import qualified Language.Object as Lang
 
 import Parser.JSON (Parser, lexeme, punctuation)

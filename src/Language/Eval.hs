@@ -11,7 +11,8 @@ import Control.Monad.Catch (Exception)
 import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst, toJSON)
-import Language.Object (Object(..), Composable(..), getAst)
+import Language.Core (Composable(..))
+import Language.Object (Object(..), getAst, keysAst)
 import Data.JSON.Repr (Repr)
 
 
@@ -31,6 +32,7 @@ instance JSON Eval where
 
 instance Object Eval where
   get key = Eval $ getAst key
+  keys = Eval keysAst
 
 instance Composable Eval where
   compose (Eval l) (Eval r) = Eval (l >=> r)
