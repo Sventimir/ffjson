@@ -12,7 +12,7 @@ import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst, toJSON)
 import Language.Core (Composable(..))
-import Language.Object (Object(..), getAst, keysAst)
+import Language.Syntax (Syntax(..), getAst, keysAst)
 import Data.JSON.Repr (Repr)
 
 
@@ -30,7 +30,7 @@ instance JSON Eval where
   obj kvs = Eval (\j -> fmap obj $ mapM (\(k, Eval f) -> fmap ((,) k) $ f j) kvs)
 
 
-instance Object Eval where
+instance Syntax Eval where
   get key = Eval $ getAst key
   keys = Eval keysAst
 

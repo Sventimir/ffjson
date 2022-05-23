@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Language.Object (
-  Object(..),
+module Language.Syntax (
+  Syntax(..),
   getAst,
   keysAst,
   parser,
@@ -27,7 +27,7 @@ import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (char, alphaNumChar)
 
 
-class JSON j => Object j where
+class JSON j => Syntax j where
   get :: Text -> j
   keys :: j
 
@@ -54,14 +54,14 @@ keysAst (JObject kvs) = return . array $ map (str . fst) kvs
 keysAst json = throwM $ NotAnObject json
 
 
-parse :: (Composable o, Object o) => Text -> EitherTrace o
+parse :: (Composable o, Syntax o) => Text -> EitherTrace o
 parse = ofEither . Megaparsec.parse parser ""
 
-parser :: (Monad m, Composable o, Object o) => Parser m o
+parser :: (Monad m, Composable o, Syntax o) => Parser m o
 parser = JsonParser.json parser <|> getObject <|> objectKeys
 
 
-getObject :: (Monad m, Composable o, Object o) => Parser m o
+getObject :: (Monad m, Composable o, Syntax o) => Parser m o
 getObject = do
   -- the parser below is guaranteed to return a none-empty list.
   e : es <- some $ do
@@ -70,7 +70,7 @@ getObject = do
     return . get $ pack key
   return $ foldl compose e es
   
-objectKeys :: (Monad m, Object o) => Parser m o
+objectKeys :: (Monad m, Syntax o) => Parser m o
 objectKeys = do
   lexeme $ Megaparsec.chunk "keys"
   return keys

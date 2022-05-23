@@ -31,7 +31,7 @@ library
       Data.JSON.Repr
       Language.Core
       Language.Eval
-      Language.Object
+      Language.Syntax
       Parser.CLI
       Parser.JSON
   other-modules:

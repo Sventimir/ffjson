@@ -15,7 +15,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import Language.Eval (Eval, eval)
 import Language.Core (Composable(..))
-import qualified Language.Object as Lang
+import qualified Language.Syntax as Syntax
 
 import Parser.JSON (Parser, lexeme, punctuation)
 
@@ -48,7 +48,7 @@ parse = ofEither . Megaparsec.parse parser ""
 parser :: Monad m => Parser m Filter
 parser = do
   inputKey <- fmap (fromMaybe "0") $ optional key
-  expr <- Lang.parser
+  expr <- Syntax.parser
   outputKey <- fmap (fromMaybe "0") $ optional key
   return $ Filter inputKey outputKey expr
 
