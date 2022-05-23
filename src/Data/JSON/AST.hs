@@ -1,11 +1,14 @@
 {-# LANGUAGE RankNTypes #-}
 module Data.JSON.AST (
   JsonAst(..),
+  ObjectError(..),
   toJSON
 ) where
 
+import Control.Monad.Catch (Exception)
 import Data.JSON (JSON)
 import qualified Data.JSON as JSON
+import Data.JSON.Repr (Repr)
 import Data.Text (Text)
 
 
@@ -33,3 +36,10 @@ toJSON (JArray js) = JSON.array $ map toJSON js
 toJSON (JObject kvs) = JSON.obj $ map pairToJSON kvs
   where
   pairToJSON (k, v) = (k, toJSON v)
+
+data ObjectError = NotAnObject JsonAst
+
+instance Show ObjectError where
+  show (NotAnObject j) = "Not an object: '" ++ show (toJSON j :: Repr String) ++ "'!"
+
+instance Exception ObjectError where

@@ -12,7 +12,8 @@ import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst, toJSON)
 import Language.Core (Composable(..))
-import Language.Syntax (Syntax(..), getAst, keysAst)
+import Language.Functions (Functions(..), keysAst)
+import Language.Syntax (Syntax(..), getAst)
 import Data.JSON.Repr (Repr)
 
 
@@ -32,6 +33,8 @@ instance JSON Eval where
 
 instance Syntax Eval where
   get key = Eval $ getAst key
+
+instance Functions Eval where
   keys = Eval keysAst
 
 instance Composable Eval where

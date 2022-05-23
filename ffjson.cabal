@@ -31,6 +31,7 @@ library
       Data.JSON.Repr
       Language.Core
       Language.Eval
+      Language.Functions
       Language.Syntax
       Parser.CLI
       Parser.JSON
