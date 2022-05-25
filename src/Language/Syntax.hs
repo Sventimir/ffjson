@@ -21,7 +21,7 @@ import Data.Text (Text, pack)
 import Language.Core(Composable(..))
 
 import Parser.JSON (Parser, lexeme)
-import Text.Megaparsec (some)
+import Text.Megaparsec (many, some)
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (alphaNumChar, char, string)
 import Text.Megaparsec.Char.Lexer (decimal)
@@ -59,14 +59,23 @@ parse = ofEither . Megaparsec.parse parser ""
 parser :: (Monad m, Composable j, Syntax j) => Parser m j
 parser = do
   -- the parser below is guaranteed to return a none-empty list.
-  e : es <- some (Megaparsec.try getArray <|> getObject)
+  e : es <- some (
+    Megaparsec.try getArray <|>
+    Megaparsec.try quotedGetObject <|>
+    getObject)
   return $ foldl compose e es
 
 
 getObject :: (Monad m, Syntax j) => Parser m j
-getObject = do
-  lexeme $ char '.'
-  key <- lexeme $ some alphaNumChar
+getObject = lexeme $ do
+  char '.'
+  key <- some alphaNumChar
+  return . get $ pack key
+
+quotedGetObject ::(Monad m, Syntax j) => Parser m j
+quotedGetObject = lexeme $ do
+  char '.'
+  key <- Megaparsec.between (char '"') (char '"') . many $ Megaparsec.anySingleBut '"'
   return . get $ pack key
   
 getArray :: (Monad m, Syntax j) => Parser m j
