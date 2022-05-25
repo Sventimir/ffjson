@@ -10,7 +10,7 @@ import Control.Monad.Catch (MonadThrow(..))
 
 import Data.Error.Trace (EitherTrace, ofEither)
 import Data.JSON (JSON(..))
-import Data.JSON.AST (JsonAst(..), ObjectError(..))
+import Data.JSON.AST (JsonAst(..), TypeError(..))
 import Data.Text (Text)
 
 import Parser.JSON (Parser, lexeme)

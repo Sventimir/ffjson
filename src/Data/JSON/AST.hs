@@ -1,7 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 module Data.JSON.AST (
   JsonAst(..),
-  ObjectError(..),
+  TypeError(..),
+  ValueError(..),
   toJSON
 ) where
 
@@ -37,9 +38,16 @@ toJSON (JObject kvs) = JSON.obj $ map pairToJSON kvs
   where
   pairToJSON (k, v) = (k, toJSON v)
 
-data ObjectError = NotAnObject JsonAst
+data TypeError = NotAnObject JsonAst
 
-instance Show ObjectError where
+instance Show TypeError where
   show (NotAnObject j) = "Not an object: '" ++ show (toJSON j :: Repr String) ++ "'!"
 
-instance Exception ObjectError where
+instance Exception TypeError where
+
+data ValueError = NegativeIndex Int
+
+instance Show ValueError where
+  show (NegativeIndex i) = "Negative array index: " ++ show i ++ "!"
+
+instance Exception ValueError
