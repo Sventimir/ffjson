@@ -26,7 +26,7 @@ modifyReturning f = do
   Indentation (cur, step) <- get
   let cur' = f cur step
   put $ Indentation (cur', step)
-  return $ if cur' > 0 then '\n' `Text.cons` Text.replicate cur' " " else ""
+  return $ if step > 0 then '\n' `Text.cons` Text.replicate cur' " " else ""
 
 indent :: Monad m => StateT Indentation m Text
 indent = modifyReturning (+)
