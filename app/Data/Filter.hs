@@ -58,7 +58,7 @@ parser = do
 
 exprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
 exprParser = JsonParser.json exprParser
-             <|> Syntax.parser
+             <|> Syntax.parser exprParser
              <|> Functions.parser
 
 key :: Monad m => Parser m Text

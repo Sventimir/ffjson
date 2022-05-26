@@ -3,8 +3,7 @@ module Language.Syntax (
   Syntax(..),
   getAst,
   indexAst,
-  parser,
-  parse
+  parser
 ) where
 
 import Prelude hiding (null)
@@ -18,7 +17,7 @@ import Data.JSON.Repr (Repr)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 
-import Parser.JSON (Parser, lexeme)
+import Parser.JSON (Parser, lexeme, punctuation)
 import Text.Megaparsec (many, some)
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (alphaNumChar, char, string)
@@ -52,11 +51,16 @@ find key ((k, v) : more)
   | otherwise = find key more
 
 
-parse :: Syntax j => Text -> EitherTrace j
-parse = ofEither . Megaparsec.parse parser ""
+parser :: (Monad m, Syntax j) => Parser m j -> Parser m j
+parser self = do
+  g <- getter
+  es <- Megaparsec.many $ do
+    punctuation '|'
+    getter <|> self
+  return $ foldl compose g es
 
-parser :: (Monad m, Syntax j) => Parser m j
-parser = do
+getter :: (Monad m, Syntax j) => Parser m j
+getter = do
   -- the parser below is guaranteed to return a none-empty list.
   e : es <- some (
     Megaparsec.try getArray <|>
@@ -83,3 +87,4 @@ getArray = do
   i <- lexeme decimal
   lexeme $ char ']'
   return $ index i
+
