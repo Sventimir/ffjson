@@ -1,6 +1,5 @@
 module Language.Eval (
   Eval,
-  Composable(..),
   eval,
 ) where
 
@@ -11,7 +10,6 @@ import Control.Monad.Catch (Exception)
 import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst, toJSON)
-import Language.Core (Composable(..))
 import Language.Functions (Functions(..), keysAst)
 import Language.Syntax (Syntax(..), getAst, indexAst)
 import Data.JSON.Repr (Repr)
@@ -32,14 +30,12 @@ instance JSON Eval where
 
 
 instance Syntax Eval where
+  compose (Eval l) (Eval r) = Eval (l >=> r)
   get key = Eval $ getAst key
   index idx = Eval $ indexAst idx
 
 instance Functions Eval where
   keys = Eval keysAst
-
-instance Composable Eval where
-  compose (Eval l) (Eval r) = Eval (l >=> r)
 
 mconst :: Monad m => a -> b -> m a
 mconst = const . return

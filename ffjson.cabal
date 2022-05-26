@@ -29,7 +29,6 @@ library
       Data.JSON
       Data.JSON.AST
       Data.JSON.Repr
-      Language.Core
       Language.Eval
       Language.Functions
       Language.Syntax

@@ -18,8 +18,6 @@ import Data.JSON.Repr (Repr)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 
-import Language.Core(Composable(..))
-
 import Parser.JSON (Parser, lexeme)
 import Text.Megaparsec (many, some)
 import qualified Text.Megaparsec as Megaparsec
@@ -28,6 +26,7 @@ import Text.Megaparsec.Char.Lexer (decimal)
 
 
 class JSON j => Syntax j where
+  compose :: j -> j -> j
   get :: Text -> j
   index :: Int -> j
 
@@ -53,10 +52,10 @@ find key ((k, v) : more)
   | otherwise = find key more
 
 
-parse :: (Composable j, Syntax j) => Text -> EitherTrace j
+parse :: Syntax j => Text -> EitherTrace j
 parse = ofEither . Megaparsec.parse parser ""
 
-parser :: (Monad m, Composable j, Syntax j) => Parser m j
+parser :: (Monad m, Syntax j) => Parser m j
 parser = do
   -- the parser below is guaranteed to return a none-empty list.
   e : es <- some (

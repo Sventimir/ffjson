@@ -14,7 +14,6 @@ import Data.JSON.AST (JsonAst)
 import Data.JsonStream (Streamset, getStream, addStream)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
-import Language.Core (Composable(..))
 import Language.Eval (Eval, eval)
 import Language.Functions (Functions)
 import qualified Language.Functions as Functions
@@ -57,7 +56,7 @@ parser = do
   outputKey <- fmap (fromMaybe "0") $ optional key
   return $ Filter inputKey outputKey expr
 
-exprParser :: (Monad m, JSON j, Composable j, Syntax j, Functions j) => Parser m j
+exprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
 exprParser = JsonParser.json exprParser
              <|> Syntax.parser
              <|> Functions.parser
