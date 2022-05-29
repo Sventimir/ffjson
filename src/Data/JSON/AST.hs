@@ -19,6 +19,7 @@ data JsonAst = JString Text
              | JNull
              | JArray [JsonAst]
              | JObject [(Text, JsonAst)]
+             deriving Eq
 
 instance JSON JsonAst where
   str = JString
@@ -38,10 +39,15 @@ toJSON (JObject kvs) = JSON.obj $ map pairToJSON kvs
   where
   pairToJSON (k, v) = (k, toJSON v)
 
+instance Show JsonAst where
+  show j = show $ (toJSON j :: Repr String)
+
 data TypeError = NotAnObject JsonAst
+               | NotAList JsonAst
 
 instance Show TypeError where
-  show (NotAnObject j) = "Not an object: '" ++ show (toJSON j :: Repr String) ++ "'!"
+  show (NotAnObject j) = "Not an object: '" ++ show j ++ "'!"
+  show (NotAList j) = "Not a list: '" ++ show j ++ "'!"
 
 instance Exception TypeError where
 

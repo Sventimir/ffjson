@@ -45,6 +45,7 @@ singleError :: Exception e => e -> Trace
 singleError e = Trace [SomeException e]
 
 newtype EitherTrace a = EitherTrace (Either Trace a)
+  deriving (Show)
 
 instance Functor EitherTrace where
   fmap f = EitherTrace . fmap f . coerce

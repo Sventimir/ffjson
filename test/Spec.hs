@@ -11,12 +11,14 @@ import Data.JSON.Repr
 import Data.Hash
 import Parser.JSON
 
-import CLI
+import CLI (cliTests)
+import Evaluator (evalTests)
 
 
 main :: IO ()
 main = hspec $ do
   cliTests
+  evalTests
   describe "parse-unparse-identity" $ do
     it "parsing after serialisation is an identity" $
       property $ \(Wrapson json) ->
