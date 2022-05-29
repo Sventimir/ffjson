@@ -10,9 +10,11 @@ module Data.Error.Trace (
   liftEither,
   liftTrace,
   runExceptTraceT,
+  runToIO
 ) where
 
 import Control.Applicative (Alternative(..))
+import Control.Exception (throwIO)
 import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..))
 import Control.Monad.Except (ExceptT(..), withExceptT, throwError, runExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
@@ -32,6 +34,8 @@ instance Monoid Trace where
 instance Show Trace where
   show (Trace es) = "Error trace:\n"
     <> (intercalate "\n* " $ fmap show es)
+
+instance Exception a => Exception [a] where
 
 instance Monad m => MonadThrow (ExceptT Trace m) where
   throwM = throwError . singleError
@@ -110,3 +114,10 @@ liftEither (Right a) = ExceptTraceT . ExceptT . return $ Right a
 
 runExceptTraceT :: Monad m => ExceptTraceT m a -> m (Either [SomeException] a)
 runExceptTraceT = runExceptT . withExceptT (\(Trace e) -> e) . coerce
+
+runToIO :: MonadIO m => ExceptTraceT m a -> m a
+runToIO m = do
+  result <- runExceptTraceT m
+  case result of
+    Right a -> return a
+    Left es -> liftIO $ throwIO es
