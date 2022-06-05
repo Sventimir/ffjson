@@ -17,11 +17,11 @@ import Data.JSON.Repr (Repr)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 
-import Parser.JSON (Parser, lexeme, punctuation)
+import Parser.JSON (Parser, lexeme, punctuation, space)
 import Text.Megaparsec (many, some)
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (alphaNumChar, char, string)
-import Text.Megaparsec.Char.Lexer (decimal)
+import Text.Megaparsec.Char.Lexer (decimal, signed)
 
 
 class JSON j => Syntax j where
@@ -43,6 +43,7 @@ indexAst index (JArray js)
   getIndex _ [] = null
   getIndex 0 (x:_) = x
   getIndex i (_:xs) = getIndex (pred i) xs
+indexAst _ json = throwM $ NotAList json
 
 find :: Eq a => a -> [(a, b)] -> Maybe b
 find _ [] = Nothing
@@ -53,11 +54,14 @@ find key ((k, v) : more)
 
 parser :: (Monad m, Syntax j) => Parser m j -> Parser m j
 parser self = do
-  g <- getter
+  g <- parentheses (parser self) <|> getter
   es <- Megaparsec.many $ do
     punctuation '|'
-    getter <|> self
+    self
   return $ foldl compose g es
+
+parentheses :: (Monad m, Syntax j) => Parser m j -> Parser m j
+parentheses self = Megaparsec.between (char '(') (char ')') self
 
 getter :: (Monad m, Syntax j) => Parser m j
 getter = do
@@ -84,7 +88,7 @@ quotedGetObject = lexeme $ do
 getArray :: (Monad m, Syntax j) => Parser m j
 getArray = do
   lexeme $ string ".["
-  i <- lexeme decimal
+  i <- lexeme $ signed space decimal
   lexeme $ char ']'
   return $ index i
 

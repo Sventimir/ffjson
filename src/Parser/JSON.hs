@@ -8,6 +8,7 @@ module Parser.JSON (
   number,
   constants,
   punctuation,
+  space,
   array,
   object,
   json
@@ -54,7 +55,7 @@ punctuation :: Monad m => Char -> Parser m Char
 punctuation = lexeme . char
 
 number :: (JSON j, Monad m) => Parser m j
-number = lexeme $ fmap num (try Lexer.float <|> Lexer.decimal)
+number = lexeme . fmap num $ Lexer.signed space (try Lexer.float <|> Lexer.decimal)
 
 constants :: (JSON j, Monad m) => Parser m j
 constants = lexeme $
