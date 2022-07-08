@@ -13,7 +13,7 @@ import Control.Monad.Catch (Exception, MonadThrow(..))
 import Data.Error.Trace (EitherTrace, ofEither)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), toJSON)
-import Data.JSON.Repr (Repr)
+import Data.JSON.Repr (Repr(..), toText)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 
@@ -53,12 +53,11 @@ find key ((k, v) : more)
 
 
 parser :: (Monad m, Syntax j) => Parser m j -> Parser m j
-parser self = do
-  g <- parentheses (parser self) <|> getter
-  es <- Megaparsec.many $ do
-    punctuation '|'
-    self
-  return $ foldl compose g es
+parser semantic = do
+  es <- Megaparsec.sepBy (parentheses semantic <|> getter <|> semantic) (punctuation '|')
+  case es of
+    [] -> fail "Bad syntax"
+    e : es -> return $ foldl compose e es
 
 parentheses :: (Monad m, Syntax j) => Parser m j -> Parser m j
 parentheses self = Megaparsec.between (char '(') (char ')') self
@@ -92,3 +91,10 @@ getArray = do
   lexeme $ char ']'
   return $ index i
 
+instance Syntax (Repr r) where
+  compose (Repr l) (Repr r) = Repr $ do
+    a <- l
+    b <- r
+    return a <> " | " <> return b
+  get key = Repr $ return (".\"" <> key <> "\"")
+  index i = Repr $ return (".[" <> toText i <> "]")

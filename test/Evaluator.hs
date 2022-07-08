@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Evaluator ( evalTests ) where
+module Evaluator ( evalTests, exprParser ) where
 
 import Prelude hiding (null)
 import Test.Hspec
@@ -40,10 +40,25 @@ evalTests = do
       (".[0]" `applyTo` "[1, 2, 3]") `shouldReturn` num 1
     it "Get from array by non-exitent index." $
       (".[0]" `applyTo` "[]") `shouldReturn` null
+    it "Array getters compoe." $
+      (".[1].[0]" `applyTo` "[0, [1, 2, 3], {}]") `shouldReturn` num 1
     it "Get from non-array fails" $
       (".[0]" `applyTo` "{}") `shouldThrow` notAnArray (obj [])
     it "Get from array by negative index fails." $
       (".[-1]" `applyTo` "[1, 2, 3]") `shouldThrow` negativeIndex (-1)
+  describe "Array and objects getters compose together." $
+    it "Compose array and object getter." $
+      (".a.[0].b" `applyTo` "{\"a\": [{\"b\": true}, 1], \"z\": null}") `shouldReturn` bool True
+  describe "Test `keys` function in isolation" $ do
+    it "`keys` returns a list a of keys of an object." $
+      ("keys" `applyTo` "{}") `shouldReturn` array []
+    it "keys returned by `keys` appear in order of definition." $
+      ("keys" `applyTo` "{\"a\": 1, \"c\": 3, \"b\": 2}") `shouldReturn` array [str "a", str "c", str "b"]
+    it "`keys` applied to non-object fails." $
+      ("keys" `applyTo` "[]") `shouldThrow` notAnObject (array [])
+  describe "Test filter composition." $ do
+    it "Get from keys list." $
+      ("keys | .[0]" `applyTo` "{\"aaa\": [], \"zzz\": 12}") `shouldReturn` str "aaa"
 
 applyTo :: Text -> Text -> IO JsonAst
 applyTo exprTxt jsonTxt = runToIO $ do
@@ -52,9 +67,7 @@ applyTo exprTxt jsonTxt = runToIO $ do
   liftTrace $ eval expr json
 
 exprParser :: (Monad m, JSON j, Syntax j, Functions j) => JsonParser.Parser m j
-exprParser = JsonParser.json exprParser
-             <|> Syntax.parser exprParser
-             <|> Functions.parser
+exprParser = Syntax.parser (JsonParser.json exprParser <|> Functions.parser)
 
 
 instance (Monad m, JSON a) => JSON (ExceptTraceT m a) where

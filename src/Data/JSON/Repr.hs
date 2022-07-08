@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
 module Data.JSON.Repr (
-  Repr,
+  Repr(..),
+  toText,
   reprS
 ) where
 
