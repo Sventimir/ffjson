@@ -59,6 +59,18 @@ evalTests = do
   describe "Test filter composition." $ do
     it "Get from keys list." $
       ("keys | .[0]" `applyTo` "{\"aaa\": [], \"zzz\": 12}") `shouldReturn` str "aaa"
+  describe "Test parenthesised sub-expressions." $ do
+    it "Parentheses enclose expressions." $ 
+      ("(keys)" `applyTo` "{}") `shouldReturn` array []
+    it "Parentheses separate sub-expressions too." $
+      ("(.[0] | .x) | keys" `applyTo` "[{\"x\": {}}]") `shouldReturn` array []
+    it "Parentheses can be nested" $
+      ("(.x.a) | ((keys) | (.[0]))" `applyTo` "{\"x\": {\"a\": {\"z\": 123}}}")
+        `shouldReturn` str "z"
+  describe "Test syntax in conjunction with standard JSON." $ do
+    it "Complex expressions in dictionary." $
+      ("{\"a\": (.x | keys), \"b\": (.y | .[0])}" `applyTo` "{\"x\": {}, \"y\": [1]}")
+        `shouldReturn` obj [("a", array []), ("b", num 1)]
 
 applyTo :: Text -> Text -> IO JsonAst
 applyTo exprTxt jsonTxt = runToIO $ do
@@ -100,4 +112,3 @@ negativeIndex expected [e] = case fromException e of
   Just (NegativeIndex i) -> expected == i
   Nothing -> False
 negativeIndex _ _ = False
-

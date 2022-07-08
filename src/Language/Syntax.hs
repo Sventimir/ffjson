@@ -54,13 +54,18 @@ find key ((k, v) : more)
 
 parser :: (Monad m, Syntax j) => Parser m j -> Parser m j
 parser semantic = do
-  es <- Megaparsec.sepBy (parentheses semantic <|> getter <|> semantic) (punctuation '|')
+  es <- Megaparsec.sepBy
+        (parentheses (parser semantic) <|> getter <|> semantic)
+        (punctuation '|')
   case es of
     [] -> fail "Bad syntax"
     e : es -> return $ foldl compose e es
 
 parentheses :: (Monad m, Syntax j) => Parser m j -> Parser m j
-parentheses self = Megaparsec.between (char '(') (char ')') self
+parentheses self = Megaparsec.between
+                     (punctuation '(')
+                     (punctuation ')')
+                     self
 
 getter :: (Monad m, Syntax j) => Parser m j
 getter = do
@@ -81,7 +86,8 @@ getObject = lexeme $ do
 quotedGetObject ::(Monad m, Syntax j) => Parser m j
 quotedGetObject = lexeme $ do
   char '.'
-  key <- Megaparsec.between (char '"') (char '"') . many $ Megaparsec.anySingleBut '"'
+  key <- Megaparsec.between (char '"') (punctuation '"')
+         . many $ Megaparsec.anySingleBut '"'
   return . get $ pack key
   
 getArray :: (Monad m, Syntax j) => Parser m j
