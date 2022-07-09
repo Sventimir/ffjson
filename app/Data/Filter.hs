@@ -58,7 +58,7 @@ parser = do
   return $ Filter inputKey outputKey expr
 
 exprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
-exprParser = Syntax.parser (JsonParser.json exprParser <|> Functions.parser)
+exprParser = Syntax.parser (JsonParser.json exprParser <|> Functions.parser exprParser)
 
 key :: Monad m => Parser m Text
 key = between

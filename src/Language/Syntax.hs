@@ -43,7 +43,7 @@ indexAst index (JArray js)
   getIndex _ [] = null
   getIndex 0 (x:_) = x
   getIndex i (_:xs) = getIndex (pred i) xs
-indexAst _ json = throwM $ NotAList json
+indexAst _ json = throwM $ NotAnArray json
 
 find :: Eq a => a -> [(a, b)] -> Maybe b
 find _ [] = Nothing

@@ -3,10 +3,14 @@ module Data.JSON.AST (
   JsonAst(..),
   TypeError(..),
   ValueError(..),
-  toJSON
+  toJSON,
+  expectArray,
+  expectObject,
+  expectNumber
 ) where
 
-import Control.Monad.Catch (Exception)
+import Control.Monad.Catch (Exception, MonadThrow(..))
+import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON)
 import qualified Data.JSON as JSON
 import Data.JSON.Repr (Repr)
@@ -43,11 +47,12 @@ instance Show JsonAst where
   show j = show $ (toJSON j :: Repr String)
 
 data TypeError = NotAnObject JsonAst
-               | NotAList JsonAst
+               | NotAnArray JsonAst
+               | NotANumber JsonAst
 
 instance Show TypeError where
   show (NotAnObject j) = "Not an object: '" ++ show j ++ "'!"
-  show (NotAList j) = "Not a list: '" ++ show j ++ "'!"
+  show (NotAnArray j) = "Not an array: '" ++ show j ++ "'!"
 
 instance Exception TypeError where
 
@@ -57,3 +62,16 @@ instance Show ValueError where
   show (NegativeIndex i) = "Negative array index: " ++ show i ++ "!"
 
 instance Exception ValueError
+
+
+expectArray :: JsonAst -> EitherTrace [JsonAst]
+expectArray (JArray js) = return js
+expectArray j = throwM $ NotAnArray j
+
+expectObject :: JsonAst -> EitherTrace [(Text, JsonAst)]
+expectObject (JObject kvs) = return kvs
+expectObject j = throwM $ NotAnObject j
+
+expectNumber :: JsonAst -> EitherTrace Double
+expectNumber (JNum n) = return n
+expectNumber j = throwM $ NotANumber j

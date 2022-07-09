@@ -10,7 +10,8 @@ import Control.Monad.Catch (Exception)
 import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst, toJSON)
-import Language.Functions (Functions(..), keysAst)
+import Language.Functions (Functions(..))
+import qualified Language.Functions as Fun
 import Language.Syntax (Syntax(..), getAst, indexAst)
 import Data.JSON.Repr (Repr)
 
@@ -35,7 +36,13 @@ instance Syntax Eval where
   index idx = Eval $ indexAst idx
 
 instance Functions Eval where
-  keys = Eval keysAst
+  keys = Eval Fun.keysAst
+  jmap (Eval f) = Eval $ Fun.arrayMap f
+  plus (Eval l) (Eval r) =
+    Eval $ \j -> do
+      a <- l j
+      b <- r j
+      Fun.numPlus a b
 
 mconst :: Monad m => a -> b -> m a
 mconst = const . return

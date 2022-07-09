@@ -71,6 +71,9 @@ evalTests = do
     it "Complex expressions in dictionary." $
       ("{\"a\": (.x | keys), \"b\": (.y | .[0])}" `applyTo` "{\"x\": {}, \"y\": [1]}")
         `shouldReturn` obj [("a", array []), ("b", num 1)]
+  describe "Test addition" $ do
+    xit "Add two properties of an object." $
+      (".a + .b" `applyTo` "{\"a\": 1, \"b\": 2}") `shouldReturn` num 3
 
 applyTo :: Text -> Text -> IO JsonAst
 applyTo exprTxt jsonTxt = runToIO $ do
@@ -79,7 +82,7 @@ applyTo exprTxt jsonTxt = runToIO $ do
   liftTrace $ eval expr json
 
 exprParser :: (Monad m, JSON j, Syntax j, Functions j) => JsonParser.Parser m j
-exprParser = Syntax.parser (JsonParser.json exprParser <|> Functions.parser)
+exprParser = Syntax.parser (JsonParser.json exprParser <|> Functions.parser exprParser)
 
 
 instance (Monad m, JSON a) => JSON (ExceptTraceT m a) where
@@ -103,7 +106,7 @@ notAnObject _ _ = False
 
 notAnArray :: JsonAst -> Selector [SomeException]
 notAnArray expected [e] = case fromException e of
-  Just (NotAList actual) -> expected == actual
+  Just (NotAnArray actual) -> expected == actual
   Nothing -> False
 notAnArray _ _ = False
 
