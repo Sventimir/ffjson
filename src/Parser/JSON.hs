@@ -18,17 +18,17 @@ import Prelude hiding (null)
 import Control.Applicative ((<|>), many)
 import Data.Error.Trace (EitherTrace, ofEither)
 import Data.Function (fix)
-import Data.JSON (JSON(..), JsonStream(..))
+import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Text.Megaparsec (ParsecT, ParseErrorBundle, empty, between, anySingleBut,
-                        chunk, sepBy, parse, try)
+import Text.Megaparsec (ParsecT, empty, between, anySingleBut, chunk, sepBy,
+                        parse, try)
 import Text.Megaparsec.Char (space1, char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 import Text.Megaparsec.Error (ShowErrorComponent(..))
 
 
-data ParseError = UnexpectedToken Text
+newtype ParseError = UnexpectedToken Text
   deriving (Show, Eq, Ord)
 
 instance ShowErrorComponent ParseError where
@@ -80,7 +80,7 @@ object self = lexeme $ do
   keyValuePair :: Parser m (Text, j)
   keyValuePair = do
     key <- string
-    lexeme $ char ':'
+    _ <- lexeme $ char ':'
     value <- self
     return (key, value)
 
@@ -90,7 +90,3 @@ json self = fmap str string <|> number <|> constants <|> arr self <|> object sel
 
 quoted :: Monad m => Parser m a -> Parser m a
 quoted = between (char '"') (char '"')
-
-
-someJSON :: JsonStream
-someJSON = JsonStream $ obj []

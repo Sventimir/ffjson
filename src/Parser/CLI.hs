@@ -1,4 +1,4 @@
-{-# LANGUAGE FunctionalDependencies, GADTs, MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies, GADTs, TupleSections #-}
 module Parser.CLI (
   CliArgs(..),
   CliError(..),
@@ -9,13 +9,10 @@ module Parser.CLI (
   cliParser
 ) where
 
-import Control.Monad (foldM)
 import Control.Monad.Catch (Exception, MonadThrow(..))
-import Control.Monad.Except (ExceptT, MonadIO, runExceptT, liftEither)
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Except (MonadIO)
+import Control.Monad.IO.Class (liftIO)
 import Data.Functor ((<&>))
-import Data.List (head, isPrefixOf)
-import Data.Word (Word8)
 
 import System.Environment (getArgs)
 
@@ -90,8 +87,8 @@ classifyArg ['-'] = return [AnyArg $ Dashes 1]
 classifyArg ('-' : '-' : flag)
   | all (== '-') flag = return [AnyArg . Dashes $ length flag + 2]
   | otherwise = return [AnyArg $ LongFlag flag]
-classifyArg ('-' : flag : []) = return [AnyArg $ ShortFlag flag]
-classifyArg flag@('-' : flags) = return $ map (AnyArg . ShortFlag) flags
+classifyArg ['-', flag] = return [AnyArg $ ShortFlag flag]
+classifyArg ('-' : flgs) = return $ map (AnyArg . ShortFlag) flgs
 classifyArg arg = return [AnyArg $ Positional arg]
 
 findFlag :: MonadThrow m => Arg Parametric -> [FlagSpec m args] -> m (FlagSpec m args)
@@ -113,17 +110,17 @@ findFlag flag (_ : specs) = findFlag flag specs
 
 parseFlag :: MonadThrow m => Arg Parametric -> FlagSpec m args ->
              args -> [AnyArg] -> m (args, [AnyArg])
-parseFlag _ (FlagSpec _ ArgZ parse) acc args = parse acc <&> flip (,) args
-parseFlag arg (FlagSpec _ (ArgS ty) parse) acc [] = throwM . MissingParam $ show arg
+parseFlag _ (FlagSpec _ ArgZ parse) acc args = parse acc <&> (, args)
+parseFlag arg (FlagSpec _ (ArgS _) _) _ [] = throwM . MissingParam $ show arg
 parseFlag arg (FlagSpec f (ArgS ty) parse) acc (AnyArg (Positional p) : args) =
   parseFlag arg (FlagSpec f ty (parse p)) acc args
 parseFlag arg (FlagSpec f (ArgS ty) parse) acc (AnyArg (Dashes len) : args) =
   parseFlag arg (FlagSpec f ty (parse $ replicate len '-')) acc args
-parseFlag arg (FlagSpec _ (ArgS ty) parse) acc (AnyArg _ : _) =
+parseFlag arg (FlagSpec _ (ArgS _) _) _ (AnyArg _ : _) =
   throwM . MissingParam $ show arg
 
 concatMapM :: Monad m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f xs = cmap [] xs
+concatMapM f = cmap []
   where
   cmap acc [] = return acc
   cmap acc (x : xs) = do

@@ -9,7 +9,6 @@ module Language.Functions (
 ) where
 
 import Control.Applicative (Alternative(..))
-import Control.Monad (mapM)
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Monad.Fix (fix)
 
@@ -38,7 +37,7 @@ keysAst (JObject kvs) = return . array $ map (str . fst) kvs
 keysAst json = throwM $ NotAnObject json
 
 arrayMap :: JsonF -> JsonF
-arrayMap f (JArray items) = fmap JArray $ mapM f items
+arrayMap f (JArray items) = JArray <$> mapM f items
 arrayMap _ json = throwM $ NotAnArray json
 
 numPlus :: JsonF2
@@ -55,12 +54,12 @@ parser self = objectKeys <|> arrMap self <|> numAdd self
 
 objectKeys :: (Monad m, Functions j) => Parser m j
 objectKeys = do
-  lexeme $ Megaparsec.chunk "keys"
+  _ <- lexeme $ Megaparsec.chunk "keys"
   return keys
 
 arrMap :: (Monad m, Functions j) => Parser m j -> Parser m j
 arrMap self = do
-  lexeme $ Megaparsec.chunk "map"
+  _ <- lexeme $ Megaparsec.chunk "map"
   f <- self
   return $ jmap f
 

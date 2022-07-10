@@ -9,12 +9,11 @@ module Language.Syntax (
 import Prelude hiding (null)
 
 import Control.Applicative (Alternative((<|>)))
-import Control.Monad.Catch (Exception, MonadThrow(..))
-import Data.Error.Trace (EitherTrace, ofEither)
+import Control.Monad.Catch (MonadThrow(..))
+import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), toJSON)
 import Data.JSON.Repr (Repr(..), toText)
-import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 
 import Parser.JSON (Parser, lexeme, punctuation, space)
@@ -31,13 +30,13 @@ class JSON j => Syntax j where
 
 
 getAst :: Text -> JsonAst -> EitherTrace JsonAst
-getAst key (JObject kvs) = return . fromMaybe null . fmap toJSON $ find key kvs
+getAst key (JObject kvs) = return . maybe null toJSON $ find key kvs
 getAst _ json = throwM $ NotAnObject json
 
 indexAst :: Int -> JsonAst -> EitherTrace JsonAst
-indexAst index (JArray js)
-  | index < 0 = throwM $ NegativeIndex index
-  | otherwise = return $ getIndex index js
+indexAst idx (JArray js)
+  | idx < 0 = throwM $ NegativeIndex idx
+  | otherwise = return $ getIndex idx js
   where
   getIndex :: Int -> [JsonAst] -> JsonAst
   getIndex _ [] = null
@@ -54,10 +53,10 @@ find key ((k, v) : more)
 
 parser :: (Monad m, Syntax j) => Parser m j -> Parser m j
 parser semantic = do
-  es <- Megaparsec.sepBy
+  exprs <- Megaparsec.sepBy
         (parentheses (parser semantic) <|> getter <|> semantic)
         (punctuation '|')
-  case es of
+  case exprs of
     [] -> fail "Bad syntax"
     e : es -> return $ foldl compose e es
 
@@ -79,22 +78,22 @@ getter = do
 
 getObject :: (Monad m, Syntax j) => Parser m j
 getObject = lexeme $ do
-  char '.'
+  _ <- char '.'
   key <- some alphaNumChar
   return . get $ pack key
 
 quotedGetObject ::(Monad m, Syntax j) => Parser m j
 quotedGetObject = lexeme $ do
-  char '.'
+  _ <- char '.'
   key <- Megaparsec.between (char '"') (punctuation '"')
          . many $ Megaparsec.anySingleBut '"'
   return . get $ pack key
   
 getArray :: (Monad m, Syntax j) => Parser m j
 getArray = do
-  lexeme $ string ".["
+  _ <- lexeme $ string ".["
   i <- lexeme $ signed space decimal
-  lexeme $ char ']'
+  _ <- lexeme $ char ']'
   return $ index i
 
 instance Syntax (Repr r) where

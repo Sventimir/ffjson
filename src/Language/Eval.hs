@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Language.Eval (
   Eval,
   eval,
@@ -6,28 +7,26 @@ module Language.Eval (
 import Prelude hiding (null)
 
 import Control.Monad ((>=>))
-import Control.Monad.Catch (Exception)
 import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
-import Data.JSON.AST (JsonAst, toJSON)
+import Data.JSON.AST (JsonAst)
 import Language.Functions (Functions(..))
 import qualified Language.Functions as Fun
 import Language.Syntax (Syntax(..), getAst, indexAst)
-import Data.JSON.Repr (Repr)
 
 
 newtype Eval = Eval (JsonAst -> EitherTrace JsonAst)
 
 eval :: Eval -> JsonAst -> EitherTrace JsonAst
-eval (Eval f) json = f json
+eval (Eval f) = f
 
 instance JSON Eval where
   str s = Eval (mconst $ str s)
   num n = Eval (mconst $ num n)
   bool b = Eval (mconst $ bool b)
   null = Eval (mconst null)
-  array js = Eval (\j -> fmap array $ mapM (\(Eval f) -> f j) js)
-  obj kvs = Eval (\j -> fmap obj $ mapM (\(k, Eval f) -> fmap ((,) k) $ f j) kvs)
+  array js = Eval (\j -> array <$> mapM (\(Eval f) -> f j) js)
+  obj kvs = Eval (\j -> obj <$> mapM (\(k, Eval f) -> (k, ) <$> f j) kvs)
 
 
 instance Syntax Eval where

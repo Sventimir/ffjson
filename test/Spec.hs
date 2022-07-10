@@ -21,11 +21,11 @@ main = hspec $ do
   evalTests
   describe "parse-unparse-identity" $ do
     it "parsing after serialisation is an identity" $
-      property $ \(Wrapson json) ->
-                   let (repr, rollingHash) = json in
+      property $ \(Wrapson j) ->
+                   let (repr, rollingHash) = j in
                    case runEitherTrace . parseJSON $ reprS repr 0 id of
                      Left _ -> False
-                     Right json' -> hash rollingHash == hash json'
+                     Right j' -> hash rollingHash == hash j'
 
 
 data Wrapson a where
@@ -40,9 +40,9 @@ instance (Show json, JSON json) => Arbitrary (Wrapson json) where
 genNull, genBool, genNum, genString, genArray, genObject ::
   (Show json, JSON json) => Gen (Wrapson json)
 genNull = return $ Wrapson null
-genBool = fmap (Wrapson . bool) chooseAny
-genNum = fmap (Wrapson . num) chooseAny
-genString = fmap (Wrapson . str . Text.pack) $ listOf chooseAny
+genBool = Wrapson . bool <$> chooseAny
+genNum = Wrapson . num <$> chooseAny
+genString = Wrapson . str . Text.pack <$> listOf chooseAny
 genArray = do
   s <- chooseInt (0, 10)
   fmap (Wrapson . array . map fromWrapson) . resize s $ listOf arbitrary
@@ -55,7 +55,7 @@ fromWrapson (Wrapson j) = j
 
 keyValuePair :: (Show json, JSON json) => Gen (Text, Wrapson json)
 keyValuePair = do
-  key <- fmap Text.pack $ listOf chooseAny
+  key <- Text.pack <$> listOf chooseAny
   value <- arbitrary
   return (key, value)
 

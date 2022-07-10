@@ -44,7 +44,7 @@ toJSON (JObject kvs) = JSON.obj $ map pairToJSON kvs
   pairToJSON (k, v) = (k, toJSON v)
 
 instance Show JsonAst where
-  show j = show $ (toJSON j :: Repr String)
+  show j = show (toJSON j :: Repr String)
 
 data TypeError = NotAnObject JsonAst
                | NotAnArray JsonAst
@@ -53,10 +53,11 @@ data TypeError = NotAnObject JsonAst
 instance Show TypeError where
   show (NotAnObject j) = "Not an object: '" ++ show j ++ "'!"
   show (NotAnArray j) = "Not an array: '" ++ show j ++ "'!"
+  show (NotANumber j) = "Not a number: '" ++ show j ++ "'!"
 
 instance Exception TypeError where
 
-data ValueError = NegativeIndex Int
+newtype ValueError = NegativeIndex Int
 
 instance Show ValueError where
   show (NegativeIndex i) = "Negative array index: " ++ show i ++ "!"

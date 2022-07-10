@@ -3,30 +3,25 @@ module Main where
 
 import Control.Monad (foldM, forM_)
 import Control.Monad.Catch (Exception, MonadThrow(..))
-import Control.Monad.Except (ExceptT(..), throwError, runExceptT, withExceptT)
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Class (MonadIO)
 
-import Data.Error.Trace (Trace, ExceptTraceT, runExceptTraceT, singleError, liftTrace)
+import Data.Error.Trace (ExceptTraceT, runExceptTraceT, liftTrace)
 import Data.Filter (Filter)
 import qualified Data.Filter as Filter
-import Data.Functor ((<&>))
 import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyInputs,
                    namedInputs, addInput, isEmptyInputs)
-import Data.JSON (JSON, JsonStream(..))
-import Data.JSON.AST (JsonAst, toJSON)
+import Data.JSON (JSON)
+import Data.JSON.AST (toJSON)
 import Data.JSON.Repr (Repr, reprS)
-import Data.JsonStream (Streamset, emptyStreamset, addStream, getStream, toObject)
-import Data.List (replicate, reverse)
+import Data.JsonStream (Streamset, emptyStreamset, addStream, getStream)
 import Data.Output (Output(..), parseOutput)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as Text
 
-import Language.Eval (Eval, eval)
-
 import Parser.JSON (parseJSON, ParseError)
-import Parser.CLI (CliArgs(..), CliError(..), FlagSpec(..), Or(..), Consume(..), cliParser)
+import Parser.CLI (CliArgs(..), FlagSpec(..), Or(..), Consume(..), cliParser)
 
-import System.IO (FilePath, IOMode(..), Handle, stdin, withFile)
+import System.IO (IOMode(..), Handle, withFile)
 
 import Text.Megaparsec (ParseErrorBundle)
 
@@ -67,8 +62,8 @@ setInputName name cfg = case currentInput cfg of
 
 addFilter :: String -> Config -> ExceptTraceT IO Config
 addFilter code cfg = do
-  filter <- liftTrace . Filter.parse $ pack code
-  return $ (finalizeInput cfg) { filters = filter : filters cfg }
+  filt <- liftTrace . Filter.parse $ pack code
+  return $ (finalizeInput cfg) { filters = filt : filters cfg }
 
 finalizeInput :: Config -> Config
 finalizeInput cfg = case currentInput cfg of
@@ -113,10 +108,10 @@ main = do
     cfg <- cliParser defaults
     jsons <- foldM readJson emptyStreamset . namedInputs $ inputs cfg
     jsons' <- foldM (\j f -> liftTrace $ Filter.evaluate f j) jsons $ filters cfg
-    return $ (cfg, jsons')
+    return (cfg, jsons')
   case result of
     Right (cfg, json) -> forM_ (outputs cfg) (outputJson (indentation cfg) json)
-    Left error -> print error
+    Left err -> print err
 
 readJson :: Streamset -> (Text, Input) -> ExceptTraceT IO Streamset
 readJson streams (k, input) = do

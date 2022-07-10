@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, OverloadedStrings, RankNTypes #-}
+{-# LANGUAGE GADTs, RankNTypes #-}
 module Data.JSON (
   JSON(..),
   JsonStream(..),
@@ -6,7 +6,7 @@ module Data.JSON (
 ) where
 -- A tagless final form of JSON expressions.
 
-import Data.Text (Text,cons, snoc,  singleton, pack)
+import Data.Text (Text)
 
 
 class JSON json where

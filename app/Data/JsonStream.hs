@@ -6,7 +6,6 @@ module Data.JsonStream (
   toObject
 ) where
 
-import Data.Input (Input)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst)
 import Data.Map (Map)
@@ -14,7 +13,7 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 
 
-data Streamset = Streamset (Map Text JsonAst)
+newtype Streamset = Streamset (Map Text JsonAst)
 
 emptyStreamset :: Streamset
 emptyStreamset = Streamset Map.empty

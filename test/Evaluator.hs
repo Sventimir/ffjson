@@ -90,8 +90,8 @@ instance (Monad m, JSON a) => JSON (ExceptTraceT m a) where
   num = return . num
   bool = return . bool
   null = return null
-  obj kvs = fmap obj $ foldM retKVpair [] kvs
-  array js = fmap array $ sequence js
+  obj kvs = obj <$> foldM retKVpair [] kvs
+  array js = array <$> sequence js
 
 retKVpair :: Monad m => [(a, b)] -> (a, m b) -> m [(a, b)]
 retKVpair kvs (k, mv) = do
@@ -101,12 +101,14 @@ retKVpair kvs (k, mv) = do
 notAnObject :: JsonAst -> Selector [SomeException]
 notAnObject expected [e] = case fromException e of
   Just (NotAnObject actual) -> expected == actual
+  Just _ -> False
   Nothing -> False
 notAnObject _ _ = False
 
 notAnArray :: JsonAst -> Selector [SomeException]
 notAnArray expected [e] = case fromException e of
   Just (NotAnArray actual) -> expected == actual
+  Just _ -> False
   Nothing -> False
 notAnArray _ _ = False
 

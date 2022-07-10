@@ -1,13 +1,11 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, MultiParamTypeClasses #-}
 module CLI ( cliTests ) where
 
-import Control.Monad.Except (MonadIO, Except, ExceptT, liftIO, throwError,
-                             runExceptT, withExceptT)
+import Control.Monad.Except (ExceptT, runExceptT, withExceptT)
 import Control.Monad.Catch (MonadThrow(..), Exception, SomeException(..),
                            fromException)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Test.Hspec
 import Test.Hspec
 import Parser.CLI
 

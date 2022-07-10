@@ -82,8 +82,8 @@ instance JSON (Repr r) where
   obj kvs = Repr $ enclose '{' (withCommas . coerce $ map kvPair kvs) '}'
 
 reprS :: Repr r -> Int -> (Text -> r) -> r
-reprS (Repr json) indentationStep f =
-  runCont (evalStateT json $ Indentation (0, indentationStep)) f
+reprS (Repr json) indentationStep =
+  runCont (evalStateT json $ Indentation (0, indentationStep))
 
 instance Show (Repr String) where
   show r = reprS r 0 Text.unpack

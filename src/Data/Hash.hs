@@ -21,17 +21,9 @@ newtype Hash = Hash (Word64, Word64) deriving (Eq, Ord)
 
 foldNatDown :: (a -> Int -> a) -> (Int -> Bool) -> a -> Int -> a
 foldNatDown _ _ acc 0 = acc
-foldNatDown f pred acc count
-  | pred count = foldNatDown f pred (f acc count) (count - 1)
-  | otherwise = foldNatDown f pred acc (count - 1)
-
-foldNatUp :: (a -> Int -> a) -> (Int -> Bool) -> a -> Int -> a
-foldNatUp f pred init limit = doFold init 0
-  where
-  doFold acc count
-    | count > limit = acc
-    | pred count = doFold (f acc count) (count + 1)
-    | otherwise = doFold acc (count + 1)
+foldNatDown f p acc count
+  | p count = foldNatDown f p (f acc count) (count - 1)
+  | otherwise = foldNatDown f p acc (count - 1)
 
 instance Bits Hash where
   (Hash (a, b)) .&. (Hash (c, d)) = Hash (a .&. c, b .&. d)
@@ -103,7 +95,7 @@ instance Show Hash where
     withPadding :: Word8 -> ShowS
     withPadding w
       | w > 15 = showHex w
-      | otherwise = showHex 0 . showHex w
+      | otherwise = showHex (0 :: Int) . showHex w
 
 newtype RollingHash = RollingHash (Hash -> Hash)
 
@@ -111,24 +103,24 @@ defaultSeed :: Hash
 defaultSeed = 0x270012ea13770132d98134e14aff0123
 
 hashEnum :: Enum c => c -> Hash
-hashEnum e = snd $ foldNatDown apply (const True) (init, defaultSeed) 32
+hashEnum e = snd $ foldNatDown apply (const True) (initial, defaultSeed) 32
   where
-  init :: Hash
-  init = fromIntegral $ fromEnum e
+  initial :: Hash
+  initial = fromIntegral $ fromEnum e
   apply :: (Hash, Hash) -> Int -> (Hash, Hash)
   apply (h, acc) pos = (rotateL (xor acc h) 2, acc + rotateL h (4 * pos))
   
 
 hashString :: Text -> Hash -> Hash
-hashString txt = flip (Text.foldl' absorbChar) txt
+hashString = flip (Text.foldl' absorbChar)
   where
   absorbChar :: Hash -> Char -> Hash
   absorbChar h c = h `xor` hashEnum c 
 
 hashNum :: Double -> Hash -> Hash
 hashNum n h =
-  let (sig, exp) = decodeFloat n in
-  hashEnum (hashEnum sig `xor` hashEnum exp)
+  let (sig, expo) = decodeFloat n in
+  h `xor` hashEnum (hashEnum sig `xor` hashEnum expo)
 
 hashBool :: Bool -> Hash
 hashBool True = 0x632d8abc541004ccfe021456ecd21933
@@ -150,12 +142,12 @@ instance Show RollingHash where
   show = show . hash
   
 concatRollingHashes :: RollingHash -> [RollingHash] -> RollingHash
-concatRollingHashes = foldl concat
+concatRollingHashes = foldl concatHash
   where
-  concat (RollingHash f) (RollingHash g) = RollingHash (g . f)
+  concatHash (RollingHash f) (RollingHash g) = RollingHash (g . f)
 
 saltedHash :: Hash -> RollingHash -> Hash
-saltedHash salt (RollingHash hash) = hash salt
+saltedHash salt (RollingHash h) = h salt
 
 hash :: RollingHash -> Hash
 hash = saltedHash 1234567890123456789012345678901234567890

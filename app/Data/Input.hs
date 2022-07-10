@@ -13,15 +13,11 @@ module Data.Input (
 
 import Control.Applicative ((<|>))
 import Control.Monad.Catch (Exception, MonadThrow(..))
-import Control.Monad.Except (ExceptT, throwError)
 import Control.Monad.IO.Class (MonadIO(..))
 
-import Data.Error.Trace (ExceptTraceT, liftTrace)
-import Data.JSON (JSON)
-import Data.List (minimum)
+import Data.Error.Trace (ExceptTraceT)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as Text
 import Data.Text.Encoding (decodeUtf8)
@@ -29,7 +25,7 @@ import Data.Text.Encoding (decodeUtf8)
 import qualified Network.HTTP.Simple as HTTP
 import qualified Network.HTTP.Types as HTTP.Types
 
-import Parser.JSON (ParseError, parseJSON)
+import Parser.JSON (ParseError)
 
 import Text.Megaparsec (ParseErrorBundle)
 
@@ -75,16 +71,16 @@ nextDefaultKey :: Inputs -> String
 nextDefaultKey (Inputs m) = firstFreeKey 0 m
   where
   firstFreeKey :: Int -> Map String Input -> String
-  firstFreeKey i m
-    | Map.member (show i) m = firstFreeKey (succ i) m
+  firstFreeKey i m'
+    | Map.member (show i) m' = firstFreeKey (succ i) m'
     | otherwise = show i
 
 addInput :: Maybe String -> Input -> Inputs -> Inputs
-addInput Nothing input ins@(Inputs map) =
+addInput Nothing input ins@(Inputs m) =
   let key = nextDefaultKey ins in
-  Inputs $ Map.insert key input map
-addInput (Just key) input (Inputs map) =
-  Inputs $ Map.insert key input map
+  Inputs $ Map.insert key input m
+addInput (Just key) input (Inputs m) =
+  Inputs $ Map.insert key input m
 
 namedInputs :: Inputs -> [(Text, Input)]
 namedInputs (Inputs m) = map packKey $ Map.toList m

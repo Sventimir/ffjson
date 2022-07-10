@@ -10,7 +10,8 @@ module Data.Error.Trace (
   liftEither,
   liftTrace,
   runExceptTraceT,
-  runToIO
+  runToIO,
+  (!:)
 ) where
 
 import Control.Applicative (Alternative(..))
