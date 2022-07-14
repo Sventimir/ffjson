@@ -33,7 +33,9 @@ library
       Language.Functions
       Language.Syntax
       Parser.CLI
+      Parser.Core
       Parser.JSON
+      Parser.Language
   other-modules:
       Paths_ffjson
   hs-source-dirs:

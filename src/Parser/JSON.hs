@@ -21,25 +21,19 @@ import Data.Function (fix)
 import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
+
+import Parser.Core (Parser, ParseError, parse)
+
 import Text.Megaparsec (ParsecT, empty, between, anySingleBut, chunk, sepBy,
-                        parse, try)
+                        try)
 import Text.Megaparsec.Char (space1, char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 import Text.Megaparsec.Error (ShowErrorComponent(..))
 
 
-newtype ParseError = UnexpectedToken Text
-  deriving (Show, Eq, Ord)
-
-instance ShowErrorComponent ParseError where
-  errorComponentLen = length . showErrorComponent
-  showErrorComponent (UnexpectedToken tok) =
-    "Unexpected token: '" <> Text.unpack tok <> "'."
-
-type Parser m a = ParsecT ParseError Text m a
 
 parseJSON :: JSON j => Text -> EitherTrace j
-parseJSON = ofEither . parse (fix json) ""
+parseJSON = parse (fix json) ""
 
 space :: Monad m => Parser m ()
 space = Lexer.space space1 empty empty
