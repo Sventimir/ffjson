@@ -70,6 +70,12 @@ evalTests = do
   describe "Test addition" $ do
     it "Add two properties of an object." $
       (".a + .b" `applyTo` "{\"a\": 1, \"b\": 2}") `shouldReturn` num 3
+    it "Add a property to a constant" $
+      (".a + 3" `applyTo` "{\"a\": 0}") `shouldReturn` num 3
+    it "Chain more additions together" $ do
+      (".[0] + .[1] + .[2]" `applyTo` "[4, 5, 6]") `shouldReturn` num 15
+    it "Only numbers add." $
+      (".a + 3" `applyTo` "{\"a\": null}") `shouldThrow` notANumber null
 
 applyTo :: Text -> Text -> IO JsonAst
 applyTo exprTxt jsonTxt = runToIO $ do
@@ -109,3 +115,9 @@ negativeIndex expected [e] = case fromException e of
   Just (NegativeIndex i) -> expected == i
   Nothing -> False
 negativeIndex _ _ = False
+
+notANumber :: JsonAst -> Selector [SomeException]
+notANumber expected [e] = case fromException e of
+  Just (NotANumber json) -> expected == json
+  Nothing -> False
+notANumber _ _ = False
