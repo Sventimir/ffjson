@@ -3,11 +3,9 @@ module Evaluator ( evalTests, exprParser ) where
 
 import Prelude hiding (null)
 import Test.Hspec
-import Test.Hspec
 
-import Control.Applicative ((<|>))
 import Control.Monad (foldM)
-import Control.Monad.Catch (MonadThrow(..), SomeException, fromException)
+import Control.Monad.Catch (SomeException, fromException)
 
 import Data.Error.Trace (ExceptTraceT, liftEither, liftTrace, runToIO)
 import Data.JSON (JSON(..))
@@ -15,11 +13,9 @@ import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..))
 import Data.Text (Text)
 
 import Language.Eval
-import Language.Functions (Functions)
-import qualified Language.Functions as Functions
-import Language.Syntax (Syntax)
-import qualified Language.Syntax as Syntax
+import Parser.Core (parse)
 import qualified Parser.JSON as JsonParser
+import Parser.Language (exprParser)
 import qualified Text.Megaparsec as Megaparsec
 
 
@@ -72,18 +68,14 @@ evalTests = do
       ("{\"a\": (.x | keys), \"b\": (.y | .[0])}" `applyTo` "{\"x\": {}, \"y\": [1]}")
         `shouldReturn` obj [("a", array []), ("b", num 1)]
   describe "Test addition" $ do
-    xit "Add two properties of an object." $
+    it "Add two properties of an object." $
       (".a + .b" `applyTo` "{\"a\": 1, \"b\": 2}") `shouldReturn` num 3
 
 applyTo :: Text -> Text -> IO JsonAst
 applyTo exprTxt jsonTxt = runToIO $ do
   json <- liftTrace $ JsonParser.parseJSON jsonTxt
-  expr <- liftEither $ Megaparsec.parse exprParser "" exprTxt
+  expr <- liftTrace $ parse exprParser "" exprTxt
   liftTrace $ eval expr json
-
-exprParser :: (Monad m, JSON j, Syntax j, Functions j) => JsonParser.Parser m j
-exprParser = Syntax.parser (JsonParser.json exprParser <|> Functions.parser exprParser)
-
 
 instance (Monad m, JSON a) => JSON (ExceptTraceT m a) where
   str = return . str

@@ -1,0 +1,500 @@
+
+./test/Spec.hs,719
+main main17,18
+data Wrapson Wrapson30,31
+  Wrapson Wrapson31,32
+instance Show Show (Wrapson json)33,34
+  show show34,35
+instance (S(Show json, JSON json) => Arbitrary (Wrapson json)36,37
+  arbitrary arbitrary37,38
+genNull, genBool, genNum, genString, genArray, genObject genObject39,40
+genNull, genBool, genNum, genString, genArray,genArray39,40
+genNull, genBool, genNum, genString,genString39,40
+genNull, genBool, genNum,genNum39,40
+genNull, genBool,genBool39,40
+genNull,genNull39,40
+genBool genBool42,43
+genNum genNum43,44
+genString genString44,45
+genArray genArray45,46
+genObject genObject48,49
+fromWrapson fromWrapson52,53
+keyValuePair keyValuePair55,56
+mapSnd mapSnd61,62
+
+./test/CLI.hs,1502
+module CLI CLI1,2
+data Option Option12,13
+data Option = Default Default12,13
+data Option = Default | OptionA OptionA12,13
+data Option = Default | OptionA | OptionB OptionB12,13
+data Option = Default | OptionA | OptionB | OptionC OptionC12,13
+data Option = Default | OptionA | OptionB | OptionC | OptionDOptionD12,13
+newtype StrArgs StrArgs15,16
+data Error Error17,18
+data Error = UnexpectedPositional UnexpectedPositional17,18
+           | UserError UserError18,19
+instance Exception Exception Error21,22
+instance CliArgs CliArgs (ExceptT SomeException IO) StrArgs23,24
+  defaults defaults24,25
+  finalize finalize25,26
+  positional positional26,27
+  hyphens hyphens27,28
+  flags flags30,31
+data OptAndFloat OptAndFloat32,33
+data OptAndFloat = OptAndFloat OptAndFloat32,33
+instance CliArgs CliArgs (ExceptT SomeException IO) OptAndFloat35,36
+  defaults defaults36,37
+  finalize finalize37,38
+  positional positional38,39
+  hyphens hyphens43,44
+  flags flags45,46
+newtype ArgMap ArgMap47,48
+argMap argMap50,51
+insertArg insertArg53,54
+instance CliArgs CliArgs (ExceptT SomeException IO) ArgMap56,57
+  defaults defaults57,58
+  finalize finalize58,59
+  positional positional59,60
+  hyphens hyphens60,61
+  flags flags61,62
+type ParseResult ParseResult71,72
+parseArgs parseArgs73,74
+unrecognisedShort unrecognisedShort76,77
+unexpectedPositional unexpectedPositional81,82
+missingParam missingParam86,87
+cliTests cliTests92,93
+
+./test/Evaluator.hs,412
+module Evaluator Evaluator1,2
+evalTests evalTests25,26
+applyTo applyTo77,78
+exprParser exprParser83,84
+instance (M(Monad m, JSON a) => JSON (ExceptTraceT m a)87,88
+  str str88,89
+  num num89,90
+  bool bool90,91
+  null null91,92
+  obj obj92,93
+  array array93,94
+retKVpair retKVpair95,96
+notAnObject notAnObject100,101
+notAnArray notAnArray107,108
+negativeIndex negativeIndex114,115
+
+./src/Language/Syntax.hs,478
+module Language.Syntax Language.Syntax1,2
+class JSON j => Syntax Syntax25,26
+  compose compose26,27
+  get get27,28
+  index index28,29
+getAst getAst31,32
+indexAst indexAst35,36
+find find46,47
+parser parser53,54
+parentheses parentheses62,63
+getter getter68,69
+getObject getObject78,79
+quotedGetObject quotedGetObject84,85
+getArray getArray91,92
+instance Syntax Syntax (Repr r)98,99
+  compose compose99,100
+  get get103,104
+  index index104,105
+
+./src/Language/Functions.hs,474
+module Language.Functions Language.Functions1,2
+class Functions Functions24,25
+  keys keys25,26
+  jmap jmap26,27
+  plus plus27,28
+type JsonF JsonF30,31
+type JsonF2 JsonF231,32
+keysAst keysAst34,35
+arrayMap arrayMap38,39
+numPlus numPlus42,43
+parse parse48,49
+parser parser51,52
+objectKeys objectKeys54,55
+arrMap arrMap59,60
+numAdd numAdd64,65
+instance Functions Functions (Repr j)72,73
+  keys keys73,74
+  jmap jmap74,75
+  plus plus75,76
+
+./src/Language/Eval.hs,440
+module Language.Eval Language.Eval1,2
+newtype Eval Eval17,18
+eval eval19,20
+instance JSON JSON Eval22,23
+  str str23,24
+  num num24,25
+  bool bool25,26
+  null null26,27
+  array array27,28
+  obj obj28,29
+instance Syntax Syntax Eval31,32
+  compose compose32,33
+  get get33,34
+  index index34,35
+instance Functions Functions Eval36,37
+  keys keys37,38
+  jmap jmap38,39
+  plus plus39,40
+mconst mconst45,46
+
+./src/Parser/CLI.hs,1189
+module Parser.CLI Parser.CLI1,2
+data CliError CliError19,20
+data CliError = UnrecognisedLong UnrecognisedLong19,20
+              | UnrecognisedShort UnrecognisedShort20,21
+              | MissingParam MissingParam21,22
+instance Exception Exception CliError24,25
+data Or Or26,27
+data Or l r = OrLeft OrLeft26,27
+            | OrRight OrRight27,28
+            | OrBoth OrBoth28,29
+data SimpleSimple30,31
+data ParametricParametric31,32
+data Arg Arg33,34
+  Positional Positional34,35
+  Dashes Dashes35,36
+  LongFlag LongFlag36,37
+  ShortFlag ShortFlag37,38
+instance Show Show (Arg a)39,40
+  show show40,41
+data AnyArg AnyArg45,46
+  AnyArg AnyArg46,47
+data Consume Consume48,49
+  ArgS ArgS49,50
+  ArgZ ArgZ50,51
+data FlagSpec FlagSpec52,53
+  FlagSpec FlagSpec53,54
+class MonadThrow m => CliArgs CliArgs55,56
+  defaults defaults56,57
+  finalize finalize57,58
+  positional positional58,59
+  hyphens hyphens59,60
+  flags flags60,61
+cliParser cliParser63,64
+argParser argParser66,67
+consumeArgs consumeArgs69,70
+classifyArg classifyArg84,85
+findFlag findFlag93,94
+parseFlag parseFlag110,111
+concatMapM concatMapM121,122
+
+./src/Parser/Language.hs,278
+module Parser.Language Parser.Language1,2
+exprParser exprParser25,26
+simpleExprParser simpleExprParser29,30
+getter getter34,35
+getObject getObject44,45
+quotedGetObject quotedGetObject50,51
+getArray getArray57,58
+constant constant64,65
+constants constants67,68
+
+./src/Parser/Core.hs,601
+module Parser.Core Parser.Core0,1
+newtype InternalParseError InternalParseError23,24
+newtype InternalParseError = UnexpectedToken UnexpectedToken23,24
+instance ShowErrorComponent ShowErrorComponent InternalParseError26,27
+  errorComponentLen errorComponentLen27,28
+  showErrorComponent showErrorComponent28,29
+newtype ParseError ParseError32,33
+instance Exception Exception ParseError34,35
+instance Show Show ParseError36,37
+  show show37,38
+type Parser Parser40,41
+parse parse42,43
+space space45,46
+lexeme lexeme48,49
+punctuation punctuation51,52
+mapLeft mapLeft55,56
+
+./src/Parser/JSON.hs,206
+module Parser.JSON Parser.JSON1,2
+parseJSON parseJSON34,35
+string string37,38
+number number41,42
+constants constants44,45
+arr arr52,53
+object object58,59
+json json72,73
+quoted quoted75,76
+
+./src/Data/JSON/Repr.hs,772
+module Data.JSON.Repr Data.JSON.Repr1,2
+toText toText18,19
+newtype Indentation Indentation22,23
+modifyReturning modifyReturning24,25
+indent indent31,32
+unindent unindent34,35
+indentation indentation37,38
+newtype Repr Repr41,42
+instance (M(Monad m, Semigroup a) => Semigroup (m a)43,44
+  ma ma44,45
+instance IsString IsString a => IsString (StateT s (Cont r) a)49,50
+  fromString fromString50,51
+kvPair kvPair52,53
+withCommas withCommas61,62
+enclose enclose68,69
+instance JSON JSON (Repr r)74,75
+  str str75,76
+  num num76,77
+  bool bool77,78
+  null null79,80
+  array array80,81
+  obj obj81,82
+reprS reprS83,84
+instance Show Show (Repr String)87,88
+  show show88,89
+instance Show Show (Repr Text)90,91
+  show show91,92
+
+./src/Data/JSON/AST.hs,1063
+module Data.JSON.AST Data.JSON.AST1,2
+data JsonAst JsonAst19,20
+data JsonAst = JString JString19,20
+             | JNum JNum20,21
+             | JBool JBool21,22
+             | JNullJNull22,23
+             | JArray JArray23,24
+             | JObject JObject24,25
+instance JSON JSON JsonAst27,28
+  str str28,29
+  num num29,30
+  bool bool30,31
+  null null31,32
+  array array32,33
+  obj obj33,34
+toJSON toJSON35,36
+instance Show Show JsonAst45,46
+  show show46,47
+data TypeError TypeError48,49
+data TypeError = NotAnObject NotAnObject48,49
+               | NotAnArray NotAnArray49,50
+               | NotANumber NotANumber50,51
+instance Show Show TypeError52,53
+  show show53,54
+instance Exception Exception TypeError57,58
+newtype ValueError ValueError59,60
+newtype ValueError = NegativeIndex NegativeIndex59,60
+instance Show Show ValueError61,62
+  show show62,63
+instance Exception Exception ValueError64,65
+expectArray expectArray67,68
+expectObject expectObject71,72
+expectNumber expectNumber75,76
+
+./src/Data/Hash.hs,1401
+module Data.Hash Data.Hash0,1
+newtype Hash Hash19,20
+foldNatDown foldNatDown21,22
+instance Bits Bits Hash27,28
+  (H(Hash(a,b)28,29
+  xor xor30,31
+  complement complement31,32
+  shiftL shiftL32,33
+  shiftR shiftR35,36
+  rotateL rotateL38,39
+  rotateR rotateR42,43
+  bitSize bitSize46,47
+  bitSizeMaybe bitSizeMaybe47,48
+  isSigned isSigned48,49
+  bit bit49,50
+  testBit testBit52,53
+  popCount popCount55,56
+instance Bounded Bounded Hash57,58
+  minBound minBound58,59
+  maxBound maxBound59,60
+instance Enum Enum Hash61,62
+  toEnum toEnum62,63
+  fromEnum fromEnum63,64
+instance Num Num Hash65,66
+  (H(Hash(a,b)66,67
+  a a70,71
+  abs abs71,72
+  signum signum72,73
+  fromInteger fromInteger73,74
+  negate negate74,75
+bits bits77,78
+splitChunks splitChunks80,81
+instance Show Show Hash90,91
+  show show91,92
+newtype RollingHash RollingHash99,100
+defaultSeed defaultSeed101,102
+hashEnum hashEnum104,105
+hashString hashString113,114
+hashNum hashNum119,120
+hashBool hashBool124,125
+hashObj hashObj128,129
+instance JSON JSON RollingHash132,133
+  str str133,134
+  num num134,135
+  bool bool135,136
+  null null136,137
+  array array137,138
+  obj obj138,139
+instance Show Show RollingHash140,141
+  show show141,142
+concatRollingHashes concatRollingHashes143,144
+saltedHash saltedHash148,149
+hash hash151,152
+
+./src/Data/Error/Trace.hs,1645
+module Data.Error.Trace Data.Error.Trace1,2
+newtype Trace Trace26,27
+instance Semigroup Semigroup Trace28,29
+  (T(Tracexs)29,30
+instance Monoid Monoid Trace31,32
+  mempty mempty32,33
+instance Show Show Trace34,35
+  show show35,36
+instance Exception Exception a => Exception [a]38,39
+instance Monad Monad m => MonadThrow (ExceptT Trace m)40,41
+  throwM throwM41,42
+(!(!:)45,46
+e e46,47
+singleError singleError48,49
+newtype EitherTrace EitherTrace51,52
+instance Functor Functor EitherTrace54,55
+  fmap fmap55,56
+instance Applicative Applicative EitherTrace57,58
+  pure pure58,59
+  (E(EitherTracef)59,60
+instance Monad Monad EitherTrace61,62
+  (E(EitherTrace(Lefte)62,63
+  (E(EitherTrace(Righta)63,64
+instance MonadThrow MonadThrow EitherTrace65,66
+  throwM throwM66,67
+ofEither ofEither68,69
+eitherJustTrace eitherJustTrace72,73
+runEitherTrace runEitherTrace76,77
+newtype ExceptTraceT ExceptTraceT80,81
+instance Functor Functor m => Functor (ExceptTraceT m)82,83
+  fmap fmap83,84
+instance Monad Monad m => Applicative (ExceptTraceT m)85,86
+  pure pure86,87
+  (E(ExceptTraceTf)87,88
+instance Monad Monad m => Alternative (ExceptTraceT m)89,90
+  empty empty90,91
+  (E(ExceptTraceTma)91,92
+instance Monad Monad m => Monad (ExceptTraceT m)93,94
+  (E(ExceptTraceTm)94,95
+instance MonadIO MonadIO m => MonadIO (ExceptTraceT m)102,103
+  liftIO liftIO103,104
+instance Monad Monad m => MonadThrow (ExceptTraceT m)105,106
+  throwM throwM106,107
+liftTrace liftTrace108,109
+liftEither liftEither111,112
+runExceptTraceT runExceptTraceT115,116
+runToIO runToIO118,119
+
+./src/Data/JSON.hs,387
+module Data.JSON Data.JSON1,2
+class JSON JSON11,12
+  str str12,13
+  num num13,14
+  bool bool14,15
+  null null15,16
+  array array16,17
+  obj obj17,18
+instance (J(JSON a, JSON b) => JSON (a, b)19,20
+  str str20,21
+  num num21,22
+  bool bool22,23
+  null null23,24
+  array array24,25
+  obj obj25,26
+newtype JsonStream JsonStream31,32
+unstream unstream33,34
+
+./app/Main.hs,1080
+module Main Main1,2
+data FFJsonError FFJsonError28,29
+data FFJsonError = UnexpectedPositional UnexpectedPositional28,29
+                 | InputError InputError29,30
+                 | NoInputNoInput30,31
+                 | AlreadyNamed AlreadyNamed31,32
+                 | ParseError ParseError32,33
+instance Exception Exception FFJsonError35,36
+data Config Config37,38
+data Config = Config Config37,38
+    currentInput currentInput38,39
+    inputs inputs39,40
+    filters filters40,41
+    outputs outputs41,42
+    indentation indentation42,43
+setIndentation setIndentation45,46
+addOutput addOutput48,49
+addNewInput addNewInput51,52
+setInputName setInputName56,57
+addFilter addFilter62,63
+finalizeInput finalizeInput67,68
+instance CliArgs CliArgs (ExceptTraceT IO) Config75,76
+  defaults defaults76,77
+  finalize finalize77,78
+  positional positional90,91
+  hyphens hyphens91,92
+  flags flags92,93
+main main104,105
+readJson readJson115,116
+parseJson parseJson120,121
+outputJson outputJson123,124
+write write129,130
+
+./app/Data/Filter.hs,424
+module Data.Filter Data.Filter1,2
+data Filter Filter30,31
+data Filter = Filter Filter30,31
+    inputKey, outputKey outputKey31,32
+    filterExpr filterExpr32,33
+newtype FilterError FilterError35,36
+newtype FilterError = UnknownStream UnknownStream35,36
+instance Exception Exception FilterError38,39
+evaluate evaluate41,42
+parse parse48,49
+parser parser51,52
+exprParser exprParser58,59
+key key61,62
+
+./app/Data/Output.hs,151
+module Data.Output Data.Output0,1
+data Output Output9,10
+data Output = Output Output9,10
+parseOutput parseOutput12,13
+strSplit strSplit19,20
+
+./app/Data/JsonStream.hs,195
+module Data.JsonStream Data.JsonStream1,2
+newtype Streamset Streamset15,16
+emptyStreamset emptyStreamset17,18
+addStream addStream20,21
+getStream getStream23,24
+toObject toObject26,27
+
+./app/Data/Input.hs,646
+module Data.Input Data.Input1,2
+data InputError InputError34,35
+data InputError = InvalidInput InvalidInput34,35
+                | JsonError JsonError35,36
+                | HttpError HttpError36,37
+instance Exception Exception InputError39,40
+data Input Input41,42
+data Input = FileInput FileInput41,42
+data Input = FileInput String | UrlInput UrlInput41,42
+parseInput parseInput43,44
+loadInput loadInput47,48
+loadFile loadFile56,57
+newtype Inputs Inputs61,62
+emptyInputs emptyInputs63,64
+isEmptyInputs isEmptyInputs66,67
+nextDefaultKey nextDefaultKey69,70
+addInput addInput77,78
+namedInputs namedInputs84,85
+
+./Setup.hs,15
+main main1,2

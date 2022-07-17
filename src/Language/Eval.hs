@@ -30,11 +30,12 @@ instance JSON Eval where
 
 
 instance Syntax Eval where
-  compose (Eval l) (Eval r) = Eval (l >=> r)
   get key = Eval $ getAst key
   index idx = Eval $ indexAst idx
 
 instance Functions Eval where
+  identity = Eval return
+  compose (Eval l) (Eval r) = Eval (l >=> r)
   keys = Eval Fun.keysAst
   jmap (Eval f) = Eval $ Fun.arrayMap f
   plus (Eval l) (Eval r) =

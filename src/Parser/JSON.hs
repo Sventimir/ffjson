@@ -22,11 +22,11 @@ import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Parser.Core (Parser, ParseError, parse)
+import Parser.Core (Parser, ParseError, parse, lexeme, space, punctuation)
 
 import Text.Megaparsec (ParsecT, empty, between, anySingleBut, chunk, sepBy,
                         try)
-import Text.Megaparsec.Char (space1, char)
+import Text.Megaparsec.Char (char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 import Text.Megaparsec.Error (ShowErrorComponent(..))
 
@@ -35,18 +35,9 @@ import Text.Megaparsec.Error (ShowErrorComponent(..))
 parseJSON :: JSON j => Text -> EitherTrace j
 parseJSON = parse (fix json) ""
 
-space :: Monad m => Parser m ()
-space = Lexer.space space1 empty empty
-
-lexeme :: Monad m => Parser m a -> Parser m a
-lexeme  = Lexer.lexeme space
-
 string :: Monad m => Parser m Text
 string = lexeme $
          fmap Text.pack $ quoted . many $ anySingleBut '"'
-
-punctuation :: Monad m => Char -> Parser m Char
-punctuation = lexeme . char
 
 number :: (JSON j, Monad m) => Parser m j
 number = lexeme . fmap num $ Lexer.signed space (try Lexer.float <|> Lexer.decimal)

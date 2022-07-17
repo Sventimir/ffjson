@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GADTs, OverloadedStrings, RankNTypes #-}
 module Language.Functions (
   Functions(..),
   keysAst,
@@ -22,7 +22,9 @@ import Parser.JSON (Parser, lexeme, punctuation)
 import qualified Text.Megaparsec as Megaparsec
 
 
-class JSON j => Functions j where
+class Functions j where
+  identity :: j
+  compose :: j -> j -> j
   keys :: j
   jmap :: j -> j
   plus :: j -> j -> j
@@ -60,8 +62,7 @@ objectKeys = do
 arrMap :: (Monad m, Functions j) => Parser m j -> Parser m j
 arrMap self = do
   _ <- lexeme $ Megaparsec.chunk "map"
-  f <- self
-  return $ jmap f
+  jmap <$> self
 
 numAdd :: (Monad m, Functions j) => Parser m j -> Parser m j
 numAdd self = do
@@ -72,6 +73,11 @@ numAdd self = do
   
 
 instance Functions (Repr j) where
+  identity = Repr $ return "id"
+  compose (Repr l) (Repr r) = Repr $ do
+    a <- l
+    b <- r
+    return a <> " | " <> return b
   keys = Repr $ return "keys"
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r

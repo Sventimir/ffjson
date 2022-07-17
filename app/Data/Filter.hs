@@ -6,22 +6,16 @@ module Data.Filter (
   exprParser
 ) where
 
-import Control.Applicative ((<|>))
 import Control.Monad.Catch (Exception(..))
 
 import Data.Error.Trace (EitherTrace, eitherJustTrace, ofEither)
-import Data.JSON (JSON)
 import Data.JsonStream (Streamset, getStream, addStream)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import Language.Eval (Eval, eval)
-import Language.Functions (Functions)
-import qualified Language.Functions as Functions
-import Language.Syntax (Syntax)
-import qualified Language.Syntax as Syntax
 
 import Parser.JSON (Parser, punctuation)
-import qualified Parser.JSON as JsonParser
+import Parser.Language (exprParser)
 
 import Text.Megaparsec (between, optional, some)
 import Text.Megaparsec.Char (alphaNumChar)
@@ -55,9 +49,6 @@ parser = do
   expr <- exprParser
   outKey <- fromMaybe "0" <$> optional key
   return $ Filter inKey outKey expr
-
-exprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
-exprParser = Syntax.parser (JsonParser.json exprParser <|> Functions.parser exprParser)
 
 key :: Monad m => Parser m Text
 key = between

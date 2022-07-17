@@ -34,7 +34,7 @@ instance Monoid Trace where
 
 instance Show Trace where
   show (Trace es) = "Error trace:\n"
-    <> (intercalate "\n* " $ fmap show es)
+    <> intercalate "\n* " (show <$> es)
 
 instance Exception a => Exception [a] where
 
