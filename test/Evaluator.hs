@@ -22,86 +22,86 @@ evalTests :: Spec
 evalTests = do
   describe "Test simple object getter." $ do
     it "Get existing key." $
-      (".a" `applyTo` "{\"a\": 1}") `shouldReturn` num 1
+      ".a" `appliedTo` "{\"a\": 1}" `shouldReturn` num 1
     it "Non-existent key returns `null`." $
-      (".a" `applyTo` "{}") `shouldReturn` null
+      ".a" `appliedTo` "{}" `shouldReturn` null
     it "Get on non-object term is an error" $
-      (".a" `applyTo` "[]") `shouldThrow` notAnObject (array [])
+      ".a" `appliedTo` "[]" `shouldThrow` notAnObject (array [])
   describe "Object getters compose." $ do
     it "Get from a nested object" $
-      (".a.b" `applyTo` "{\"a\": {\"b\": 1234}}") `shouldReturn` num 1234
+      ".a.b" `appliedTo` "{\"a\": {\"b\": 1234}}" `shouldReturn` num 1234
   describe "Test array getter." $ do
     it "Get from array by existing index." $
-      (".[0]" `applyTo` "[1, 2, 3]") `shouldReturn` num 1
+      ".[0]" `appliedTo` "[1, 2, 3]" `shouldReturn` num 1
     it "Get from array by non-exitent index." $
-      (".[0]" `applyTo` "[]") `shouldReturn` null
+      ".[0]" `appliedTo` "[]" `shouldReturn` null
     it "Array getters compoe." $
-      (".[1].[0]" `applyTo` "[0, [1, 2, 3], {}]") `shouldReturn` num 1
+      ".[1].[0]" `appliedTo` "[0, [1, 2, 3], {}]" `shouldReturn` num 1
     it "Get from non-array fails" $
-      (".[0]" `applyTo` "{}") `shouldThrow` notAnArray (obj [])
+      ".[0]" `appliedTo` "{}" `shouldThrow` notAnArray (obj [])
     it "Get from array by negative index fails." $
-      (".[-1]" `applyTo` "[1, 2, 3]") `shouldThrow` negativeIndex (-1)
+      ".[-1]" `appliedTo` "[1, 2, 3]" `shouldThrow` negativeIndex (-1)
   describe "Array and objects getters compose together." $
     it "Compose array and object getter." $
-      (".a.[0].b" `applyTo` "{\"a\": [{\"b\": true}, 1], \"z\": null}") `shouldReturn` bool True
+      ".a.[0].b" `appliedTo` "{\"a\": [{\"b\": true}, 1], \"z\": null}" `shouldReturn` bool True
   describe "Test `keys` function in isolation" $ do
     it "`keys` returns a list a of keys of an object." $
-      ("keys" `applyTo` "{}") `shouldReturn` array []
+      "keys" `appliedTo` "{}" `shouldReturn` array []
     it "keys returned by `keys` appear in order of definition." $
-      ("keys" `applyTo` "{\"a\": 1, \"c\": 3, \"b\": 2}") `shouldReturn` array [str "a", str "c", str "b"]
+      "keys" `appliedTo` "{\"a\": 1, \"c\": 3, \"b\": 2}" `shouldReturn` array [str "a", str "c", str "b"]
     it "`keys` applied to non-object fails." $
-      ("keys" `applyTo` "[]") `shouldThrow` notAnObject (array [])
+      "keys" `appliedTo` "[]" `shouldThrow` notAnObject (array [])
   describe "Test filter composition." $ do
     it "Get from keys list." $
-      ("keys | .[0]" `applyTo` "{\"aaa\": [], \"zzz\": 12}") `shouldReturn` str "aaa"
+      "keys | .[0]" `appliedTo` "{\"aaa\": [], \"zzz\": 12}" `shouldReturn` str "aaa"
   describe "Test parenthesised sub-expressions." $ do
     it "Parentheses enclose expressions." $ 
-      ("(keys)" `applyTo` "{}") `shouldReturn` array []
+      "(keys)" `appliedTo` "{}" `shouldReturn` array []
     it "Parentheses separate sub-expressions too." $
-      ("(.[0] | .x) | keys" `applyTo` "[{\"x\": {}}]") `shouldReturn` array []
+      "(.[0] | .x) | keys" `appliedTo` "[{\"x\": {}}]" `shouldReturn` array []
     it "Parentheses can be nested" $
-      ("(.x.a) | ((keys) | (.[0]))" `applyTo` "{\"x\": {\"a\": {\"z\": 123}}}")
+      "(.x.a) | ((keys) | (.[0]))" `appliedTo` "{\"x\": {\"a\": {\"z\": 123}}}"
         `shouldReturn` str "z"
   describe "Test syntax in conjunction with standard JSON." $ do
     it "Complex expressions in dictionary." $
-      ("{\"a\": (.x | keys), \"b\": (.y | .[0])}" `applyTo` "{\"x\": {}, \"y\": [1]}")
+      "{\"a\": (.x | keys), \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
         `shouldReturn` obj [("a", array []), ("b", num 1)]
   describe "Test addition" $ do
     it "Add two properties of an object." $
-      (".a + .b" `applyTo` "{\"a\": 1, \"b\": 2}") `shouldReturn` num 3
+      ".a + .b" `appliedTo` "{\"a\": 1, \"b\": 2}" `shouldReturn` num 3
     it "Add a property to a constant" $
-      (".a + 3" `applyTo` "{\"a\": 0}") `shouldReturn` num 3
+      ".a + 3" `appliedTo` "{\"a\": 0}" `shouldReturn` num 3
     it "Chain more additions together" $ do
-      (".[0] + .[1] + .[2]" `applyTo` "[4, 5, 6]") `shouldReturn` num 15
+      ".[0] + .[1] + .[2]" `appliedTo` "[4, 5, 6]" `shouldReturn` num 15
     it "Only numbers add." $
-      (".a + 3" `applyTo` "{\"a\": null}") `shouldThrow` notANumber null
+      ".a + 3" `appliedTo` "{\"a\": null}" `shouldThrow` notANumber null
   describe "Test calling prefix named functions." $ do
     it "Function's name followed by arguments calls the function." $
-      ("plus 1 3" `applyTo` "{\"a\": 1, \"b\": 3}") `shouldReturn` num 4
+      "plus 1 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 4
     it "Function calls compose with getters." $
-      ("plus .a 1" `applyTo` "{\"a\": 2}") `shouldReturn` num 3
+      "plus .a 1" `appliedTo` "{\"a\": 2}" `shouldReturn` num 3
     it "Function called with two getters also works." $
-      ("mult .[0] .[1]" `applyTo` "[2, 5]") `shouldReturn` num 10
+      "mult .[0] .[1]" `appliedTo` "[2, 5]" `shouldReturn` num 10
       
   -- For the moment we do not implement operator precedence, so by default
   -- operations are evaluated in the order of appearance.
   describe "Test order of arithmetic operations" $ do
     it "By default operations are evaluated in the order of appearance." $
-      ("1 + 2 * 3 + 4" `applyTo` "[]") `shouldReturn` num 13
+      "1 + 2 * 3 + 4" `appliedTo` "[]" `shouldReturn` num 13
     it "Parentheses can modify operation precedence." $
-      ("1 + (2 * 3) + 4" `applyTo` "{}") `shouldReturn` num 11
+      "1 + (2 * 3) + 4" `appliedTo` "{}" `shouldReturn` num 11
     it "Function call binds more strongly than operators." $
-      ("(mult .[0] .[1]) + (mult .[2] .[3])" `applyTo` "[2, 3, 4, 5]") `shouldReturn` num 26
+      "(mult .[0] .[1]) + (mult .[2] .[3])" `appliedTo` "[2, 3, 4, 5]" `shouldReturn` num 26
     it "Parentheses bind more strongly than anything else." $
-      ("mult (.a + .b) 3" `applyTo` "{\"a\": 1, \"b\": 3}") `shouldReturn` num 12
+      "mult (.a + .b) 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 12
   describe "Test map function." $ do
     it "Map alters every element of an array as if it was a standalone JSON." $
-      ("map (id + 1)" `applyTo` "[1, 2, 3]") `shouldReturn` array [num 2, num 3, num 4]
+      "map (id + 1)" `appliedTo` "[1, 2, 3]" `shouldReturn` array [num 2, num 3, num 4]
     it "Parts of an element can also be accessed." $ do
-      ("map (.a * .b)" `applyTo` "[{\"a\": 3, \"b\": 2}, {\"a\": 5, \"b\": 3}]") `shouldReturn` array [num 6, num 15]
+      "map (.a * .b)" `appliedTo` "[{\"a\": 3, \"b\": 2}, {\"a\": 5, \"b\": 3}]" `shouldReturn` array [num 6, num 15]
 
-applyTo :: Text -> Text -> IO JsonAst
-applyTo exprTxt jsonTxt = runToIO $ do
+appliedTo :: Text -> Text -> IO JsonAst
+appliedTo exprTxt jsonTxt = runToIO $ do
   json <- liftTrace $ JsonParser.parseJSON jsonTxt
   expr <- liftTrace $ parse exprParser "" exprTxt
   liftTrace $ eval expr json
