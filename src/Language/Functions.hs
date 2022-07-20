@@ -4,6 +4,7 @@ module Language.Functions (
   keysAst,
   arrayMap,
   numPlus,
+  numMult,
   parser,
   parse
 ) where
@@ -28,6 +29,7 @@ class Functions j where
   keys :: j
   jmap :: j -> j
   plus :: j -> j -> j
+  mult :: j -> j -> j
 
 
 type JsonF = JsonAst -> EitherTrace JsonAst -- a unary operation on JSON
@@ -47,6 +49,12 @@ numPlus l r = do
   a <- expectNumber l
   b <- expectNumber r
   return $ num (a + b)
+
+numMult :: JsonF2
+numMult l r = do
+  a <- expectNumber l
+  b <- expectNumber r
+  return $ num (a * b)
 
 parse :: Functions j => Text -> EitherTrace j
 parse = ofEither . Megaparsec.parse (fix parser) ""
@@ -81,3 +89,4 @@ instance Functions (Repr j) where
   keys = Repr $ return "keys"
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r
+  mult (Repr l) (Repr r) = Repr $ l <> " * " <> r

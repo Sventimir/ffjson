@@ -7,7 +7,7 @@ import Test.Hspec
 import Control.Monad (foldM)
 import Control.Monad.Catch (SomeException, fromException)
 
-import Data.Error.Trace (ExceptTraceT, liftEither, liftTrace, runToIO)
+import Data.Error.Trace (ExceptTraceT, liftTrace, runToIO)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..))
 import Data.Text (Text)
@@ -16,7 +16,6 @@ import Language.Eval
 import Parser.Core (parse)
 import qualified Parser.JSON as JsonParser
 import Parser.Language (exprParser)
-import qualified Text.Megaparsec as Megaparsec
 
 
 evalTests :: Spec
@@ -76,6 +75,30 @@ evalTests = do
       (".[0] + .[1] + .[2]" `applyTo` "[4, 5, 6]") `shouldReturn` num 15
     it "Only numbers add." $
       (".a + 3" `applyTo` "{\"a\": null}") `shouldThrow` notANumber null
+  describe "Test calling prefix named functions." $ do
+    it "Function's name followed by arguments calls the function." $
+      ("plus 1 3" `applyTo` "{\"a\": 1, \"b\": 3}") `shouldReturn` num 4
+    it "Function calls compose with getters." $
+      ("plus .a 1" `applyTo` "{\"a\": 2}") `shouldReturn` num 3
+    it "Function called with two getters also works." $
+      ("mult .[0] .[1]" `applyTo` "[2, 5]") `shouldReturn` num 10
+      
+  -- For the moment we do not implement operator precedence, so by default
+  -- operations are evaluated in the order of appearance.
+  describe "Test order of arithmetic operations" $ do
+    it "By default operations are evaluated in the order of appearance." $
+      ("1 + 2 * 3 + 4" `applyTo` "[]") `shouldReturn` num 13
+    it "Parentheses can modify operation precedence." $
+      ("1 + (2 * 3) + 4" `applyTo` "{}") `shouldReturn` num 11
+    it "Function call binds more strongly than operators." $
+      ("(mult .[0] .[1]) + (mult .[2] .[3])" `applyTo` "[2, 3, 4, 5]") `shouldReturn` num 26
+    it "Parentheses bind more strongly than anything else." $
+      ("mult (.a + .b) 3" `applyTo` "{\"a\": 1, \"b\": 3}") `shouldReturn` num 12
+  describe "Test map function." $ do
+    it "Map alters every element of an array as if it was a standalone JSON." $
+      ("map (id + 1)" `applyTo` "[1, 2, 3]") `shouldReturn` array [num 2, num 3, num 4]
+    it "Parts of an element can also be accessed." $ do
+      ("map (.a * .b)" `applyTo` "[{\"a\": 3, \"b\": 2}, {\"a\": 5, \"b\": 3}]") `shouldReturn` array [num 6, num 15]
 
 applyTo :: Text -> Text -> IO JsonAst
 applyTo exprTxt jsonTxt = runToIO $ do

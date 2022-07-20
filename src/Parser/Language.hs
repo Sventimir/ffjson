@@ -47,7 +47,7 @@ simpleExprParser subexpr =
 
 
 getter :: (Monad m, Functions j, Syntax j) => Parser m j
-getter = do
+getter = lexeme $ do
   -- the parser below is guaranteed to return a none-empty list.
   e : es <- some (
     Megaparsec.try getArray <|>
@@ -57,13 +57,13 @@ getter = do
 
 
 getObject :: (Monad m, Syntax j) => Parser m j
-getObject = lexeme $ do
+getObject = do
   _ <- MegaparsecChar.char '.'
   key <- some MegaparsecChar.alphaNumChar
   return . Syntax.get $ Text.pack key
 
 quotedGetObject ::(Monad m, Syntax j) => Parser m j
-quotedGetObject = lexeme $ do
+quotedGetObject = do
   _ <- MegaparsecChar.char '.'
   key <- Megaparsec.between (MegaparsecChar.char '"') (punctuation '"')
          . many $ Megaparsec.anySingleBut '"'
@@ -71,9 +71,9 @@ quotedGetObject = lexeme $ do
   
 getArray :: (Monad m, Syntax j) => Parser m j
 getArray = do
-  _ <- lexeme $ MegaparsecChar.string ".["
-  i <- lexeme $ Lexer.signed space Lexer.decimal
-  _ <- lexeme $ MegaparsecChar.char ']'
+  _ <- MegaparsecChar.string ".["
+  i <- Lexer.signed space Lexer.decimal
+  _ <- MegaparsecChar.char ']'
   return $ Syntax.index i
 
 constant :: (Monad m, Functions j) => Text -> j -> Parser m j
@@ -96,6 +96,7 @@ functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     constant "keys" Functions.keys,
     function subexpr "map" Functions.jmap,
     function2 subexpr "plus" Functions.plus,
+    function2 subexpr "mult" Functions.mult,
     function2 subexpr "compose" Functions.compose
   ]
 
@@ -109,6 +110,7 @@ operator = do
 operators :: Functions j => Map.Map String (j -> j -> j)
 operators = Map.fromList [
     ("+", Functions.plus),
+    ("*", Functions.mult),
     ("|", Functions.compose)
   ]
 
