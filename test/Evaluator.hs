@@ -46,25 +46,25 @@ evalTests = do
       ".a.[0].b" `appliedTo` "{\"a\": [{\"b\": true}, 1], \"z\": null}" `shouldReturn` bool True
   describe "Test `keys` function in isolation" $ do
     it "`keys` returns a list a of keys of an object." $
-      "keys" `appliedTo` "{}" `shouldReturn` array []
+      "keys id" `appliedTo` "{}" `shouldReturn` array []
     it "keys returned by `keys` appear in order of definition." $
-      "keys" `appliedTo` "{\"a\": 1, \"c\": 3, \"b\": 2}" `shouldReturn` array [str "a", str "c", str "b"]
+      "keys id" `appliedTo` "{\"a\": 1, \"c\": 3, \"b\": 2}" `shouldReturn` array [str "a", str "c", str "b"]
     it "`keys` applied to non-object fails." $
-      "keys" `appliedTo` "[]" `shouldThrow` notAnObject (array [])
+      "keys id" `appliedTo` "[]" `shouldThrow` notAnObject (array [])
   describe "Test filter composition." $ do
     it "Get from keys list." $
-      "keys | .[0]" `appliedTo` "{\"aaa\": [], \"zzz\": 12}" `shouldReturn` str "aaa"
+      "keys id | .[0]" `appliedTo` "{\"aaa\": [], \"zzz\": 12}" `shouldReturn` str "aaa"
   describe "Test parenthesised sub-expressions." $ do
     it "Parentheses enclose expressions." $ 
-      "(keys)" `appliedTo` "{}" `shouldReturn` array []
+      "(keys id)" `appliedTo` "{}" `shouldReturn` array []
     it "Parentheses separate sub-expressions too." $
-      "(.[0] | .x) | keys" `appliedTo` "[{\"x\": {}}]" `shouldReturn` array []
+      "(.[0] | .x) | keys id" `appliedTo` "[{\"x\": {}}]" `shouldReturn` array []
     it "Parentheses can be nested" $
-      "(.x.a) | ((keys) | (.[0]))" `appliedTo` "{\"x\": {\"a\": {\"z\": 123}}}"
+      "(.x.a) | ((keys id) | (.[0]))" `appliedTo` "{\"x\": {\"a\": {\"z\": 123}}}"
         `shouldReturn` str "z"
   describe "Test syntax in conjunction with standard JSON." $ do
     it "Complex expressions in dictionary." $
-      "{\"a\": (.x | keys), \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
+      "{\"a\": (keys .x), \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
         `shouldReturn` obj [("a", array []), ("b", num 1)]
   describe "Test addition" $ do
     it "Add two properties of an object." $

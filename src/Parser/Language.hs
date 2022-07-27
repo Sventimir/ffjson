@@ -7,6 +7,7 @@ import Control.Applicative (Alternative(..))
 
 import Data.JSON (JSON(..))
 import qualified Data.Map as Map
+import Data.Function (fix)
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -42,8 +43,8 @@ simpleExprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j -> Pa
 simpleExprParser subexpr =
   Megaparsec.try (JsonParser.json subexpr)
   <|> Megaparsec.try getter
-  <|> Megaparsec.try (functions subexpr)
-  <|> parentheses subexpr
+  <|> Megaparsec.try (functions $ fix simpleExprParser)
+  <|> parentheses exprParser
 
 
 getter :: (Monad m, Functions j, Syntax j) => Parser m j
@@ -93,7 +94,7 @@ function2 subexpr name f = do
 functions :: (Monad m, Functions j) => Parser m j -> Parser m j
 functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     constant "id" Functions.identity,
-    constant "keys" Functions.keys,
+    function subexpr "keys" Functions.keys,
     function subexpr "map" Functions.jmap,
     function2 subexpr "plus" Functions.plus,
     function2 subexpr "mult" Functions.mult,

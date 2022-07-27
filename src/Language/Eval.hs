@@ -36,7 +36,7 @@ instance Syntax Eval where
 instance Functions Eval where
   identity = Eval return
   compose (Eval l) (Eval r) = Eval (l >=> r)
-  keys = Eval Fun.keysAst
+  keys (Eval j) = Eval (j >=> Fun.keysAst)
   jmap (Eval f) = Eval $ Fun.arrayMap f
   plus (Eval l) (Eval r) =
     Eval $ \j -> do

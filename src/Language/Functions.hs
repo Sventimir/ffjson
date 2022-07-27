@@ -4,9 +4,7 @@ module Language.Functions (
   keysAst,
   arrayMap,
   numPlus,
-  numMult,
-  parser,
-  parse
+  numMult
 ) where
 
 import Control.Applicative (Alternative(..))
@@ -26,7 +24,7 @@ import qualified Text.Megaparsec as Megaparsec
 class Functions j where
   identity :: j
   compose :: j -> j -> j
-  keys :: j
+  keys :: j -> j
   jmap :: j -> j
   plus :: j -> j -> j
   mult :: j -> j -> j
@@ -56,37 +54,13 @@ numMult l r = do
   b <- expectNumber r
   return $ num (a * b)
 
-parse :: Functions j => Text -> EitherTrace j
-parse = ofEither . Megaparsec.parse (fix parser) ""
-
-parser :: (Monad m, Functions j) => Parser m j -> Parser m j
-parser self = objectKeys <|> arrMap self <|> numAdd self
-
-objectKeys :: (Monad m, Functions j) => Parser m j
-objectKeys = do
-  _ <- lexeme $ Megaparsec.chunk "keys"
-  return keys
-
-arrMap :: (Monad m, Functions j) => Parser m j -> Parser m j
-arrMap self = do
-  _ <- lexeme $ Megaparsec.chunk "map"
-  jmap <$> self
-
-numAdd :: (Monad m, Functions j) => Parser m j -> Parser m j
-numAdd self = do
-  exprs <- Megaparsec.sepBy self (punctuation '+')
-  case exprs of
-    [] -> fail "No expressions to add"
-    e : es -> return $ foldl plus e es
-  
-
 instance Functions (Repr j) where
   identity = Repr $ return "id"
   compose (Repr l) (Repr r) = Repr $ do
     a <- l
     b <- r
     return a <> " | " <> return b
-  keys = Repr $ return "keys"
+  keys (Repr j) = Repr $ "keys" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r
   mult (Repr l) (Repr r) = Repr $ l <> " * " <> r
