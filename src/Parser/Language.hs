@@ -97,6 +97,7 @@ functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     function subexpr "keys" Functions.keys,
     function subexpr "map" Functions.jmap,
     function subexpr "neg" Functions.neg,
+    function subexpr "recip" Functions.recipr,
     function2 subexpr "plus" Functions.plus,
     function2 subexpr "mult" Functions.mult,
     function2 subexpr "compose" Functions.compose
@@ -114,6 +115,7 @@ operators = Map.fromList [
     ("+", Functions.plus),
     ("-", Functions.minus),
     ("*", Functions.mult),
+    ("/", Functions.divide),
     ("|", Functions.compose)
   ]
 

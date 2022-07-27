@@ -4,9 +4,11 @@ module Language.Functions (
   keysAst,
   arrayMap,
   numNeg,
+  numRecip,
   numPlus,
   numMult,
-  minus
+  minus,
+  divide
 ) where
 
 import Control.Monad.Catch (MonadThrow(..))
@@ -23,6 +25,7 @@ class Functions j where
   keys :: j -> j
   jmap :: j -> j
   neg :: j -> j
+  recipr :: j -> j
   plus :: j -> j -> j
   mult :: j -> j -> j
 
@@ -44,6 +47,11 @@ numNeg j = do
   n <- expectNumber j
   return $ num (-n)
 
+numRecip :: JsonF
+numRecip j = do
+  n <- expectNumber j
+  return . num $ recip n
+
 numPlus :: JsonF2
 numPlus l r = do
   a <- expectNumber l
@@ -59,6 +67,9 @@ numMult l r = do
 minus :: Functions j => j -> j -> j
 minus a b = plus a $ neg b
 
+divide :: Functions j => j -> j -> j
+divide a b = mult a $ recipr b
+
 instance Functions (Repr j) where
   identity = Repr $ return "id"
   compose (Repr l) (Repr r) = Repr $ do
@@ -68,5 +79,6 @@ instance Functions (Repr j) where
   keys (Repr j) = Repr $ "keys" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   neg (Repr j) = Repr $ "neg" <> j
+  recipr (Repr j) = Repr $ "recip" <> j
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r
   mult (Repr l) (Repr r) = Repr $ l <> " * " <> r

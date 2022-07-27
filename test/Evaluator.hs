@@ -77,6 +77,8 @@ evalTests = do
       ".a + 3" `appliedTo` "{\"a\": null}" `shouldThrow` notANumber null
     it "Subtraction is addition with second argument negated." $
       ".a - .b" `appliedTo` "{\"a\": 3, \"b\": 2}" `shouldReturn` num 1
+    it "Division is multipilcation with second argument inverted." $
+      ".a / .b" `appliedTo` "{\"a\": 3, \"b\": 4}" `shouldReturn` num 0.75
   describe "Test calling prefix named functions." $ do
     it "Function's name followed by arguments calls the function." $
       "plus 1 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 4
