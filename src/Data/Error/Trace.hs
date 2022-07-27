@@ -17,7 +17,7 @@ module Data.Error.Trace (
 import Control.Applicative (Alternative(..))
 import Control.Exception (throwIO)
 import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..))
-import Control.Monad.Except (ExceptT(..), withExceptT, throwError, runExceptT)
+import Control.Monad.Except (ExceptT(..), throwError, runExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
 
 import Data.Coerce (coerce)
@@ -33,7 +33,7 @@ instance Monoid Trace where
   mempty = Trace []
 
 instance Show Trace where
-  show (Trace es) = "Error trace:\n"
+  show (Trace es) = "Error trace:\n* "
     <> intercalate "\n* " (show <$> es)
 
 instance Exception a => Exception [a] where
@@ -113,12 +113,12 @@ liftEither :: (Monad m, Exception e) => Either e a -> ExceptTraceT m a
 liftEither (Left e) = ExceptTraceT . ExceptT . return . Left $ singleError e
 liftEither (Right a) = ExceptTraceT . ExceptT . return $ Right a
 
-runExceptTraceT :: Monad m => ExceptTraceT m a -> m (Either [SomeException] a)
-runExceptTraceT = runExceptT . withExceptT (\(Trace e) -> e) . coerce
+runExceptTraceT :: Monad m => ExceptTraceT m a -> m (Either Trace a)
+runExceptTraceT = runExceptT . coerce
 
 runToIO :: MonadIO m => ExceptTraceT m a -> m a
 runToIO m = do
   result <- runExceptTraceT m
   case result of
     Right a -> return a
-    Left es -> liftIO $ throwIO es
+    Left (Trace es) -> liftIO $ throwIO es
