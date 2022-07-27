@@ -26,7 +26,7 @@ main = hspec $ do
     it "parsing after serialisation is an identity" $
       property $ \(Wrapson j) ->
                    let (repr, rollingHash) = j in
-                   case runEitherTrace . parseJSON $ reprS repr 0 id of
+                   case runEitherTrace . parseJSON $ reprS repr defaultReprConfig id of
                      Left _ -> False
                      Right j' -> hash rollingHash == hash j'
 

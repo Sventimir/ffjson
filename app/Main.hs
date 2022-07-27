@@ -12,7 +12,7 @@ import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyIn
                    namedInputs, addInput, isEmptyInputs)
 import Data.JSON (JSON)
 import Data.JSON.AST (toJSON)
-import Data.JSON.Repr (Repr, reprS)
+import Data.JSON.Repr (Repr, ReprConfig(..), reprS)
 import Data.JsonStream (Streamset, emptyStreamset, addStream, getStream)
 import Data.Output (Output(..), parseOutput)
 import Data.Text (Text, pack)
@@ -40,11 +40,14 @@ data Config = Config {
     inputs :: Inputs,
     filters :: [Filter],
     outputs :: [Output],
-    indentation :: Int
+    repr :: ReprConfig
   }
 
 setIndentation :: Int -> Config -> Config
-setIndentation i cfg = cfg { indentation = i }
+setIndentation i cfg = cfg { repr = (repr cfg) { indentationStep = i } }
+
+enableFractionsRepr :: Config -> Config
+enableFractionsRepr cfg = cfg { repr = (repr cfg) { printRationals = True } } 
 
 addOutput :: String -> Config -> Config
 addOutput out cfg = (finalizeInput cfg) { outputs = parseOutput out : outputs cfg }
@@ -74,7 +77,7 @@ finalizeInput cfg = case currentInput cfg of
     }
 
 instance CliArgs (ExceptTraceT IO) Config where
-  defaults = Config Nothing emptyInputs [] [] 2
+  defaults = Config Nothing emptyInputs [] [] (ReprConfig 2 False)
   finalize cfg =
     let cfg' = finalizeInput cfg
         ins = if isEmptyInputs $ inputs cfg'
@@ -96,6 +99,7 @@ instance CliArgs (ExceptTraceT IO) Config where
             FlagSpec (OrBoth 'o' "output") (ArgS ArgZ) (\f cfg -> return $ addOutput f cfg),
             FlagSpec (OrBoth 'r' "raw") ArgZ (return . setIndentation 0 . finalizeInput),
             FlagSpec (OrBoth 'f' "filter") (ArgS ArgZ) addFilter,
+            FlagSpec (OrRight "ratios") ArgZ (return . enableFractionsRepr),
             FlagSpec
               (OrRight "indent")
               (ArgS ArgZ)
@@ -110,7 +114,7 @@ main = do
     jsons' <- foldM (\j f -> liftTrace $ Filter.evaluate f j) jsons $ filters cfg
     return (cfg, jsons')
   case result of
-    Right (cfg, json) -> forM_ (outputs cfg) (outputJson (indentation cfg) json)
+    Right (cfg, json) -> forM_ (outputs cfg) (outputJson (repr cfg) json)
     Left err -> print err
 
 readJson :: Streamset -> (Text, Input) -> ExceptTraceT IO Streamset
@@ -121,11 +125,11 @@ readJson streams (k, input) = do
 parseJson :: (JSON j, MonadIO m) => Text -> ExceptTraceT m j
 parseJson = liftTrace . parseJSON
 
-outputJson :: Int -> Streamset -> Output -> IO ()
-outputJson indent streamset (Output key filename) =
+outputJson :: ReprConfig -> Streamset -> Output -> IO ()
+outputJson cfg streamset (Output key filename) =
    case getStream key streamset of
      Nothing -> return ()
-     Just json -> withFile filename WriteMode . write indent $ toJSON json
+     Just json -> withFile filename WriteMode . write cfg $ toJSON json
 
-write :: Int -> Repr Text -> Handle -> IO ()
-write indent json fd = Text.hPutStrLn fd (reprS json indent id)
+write :: ReprConfig -> Repr Text -> Handle -> IO ()
+write cfg json fd = Text.hPutStrLn fd (reprS json cfg id)
