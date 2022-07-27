@@ -40,7 +40,10 @@ string = lexeme $
          fmap Text.pack $ quoted . many $ anySingleBut '"'
 
 number :: (JSON j, Monad m) => Parser m j
-number = lexeme . fmap num $ Lexer.signed space (try Lexer.float <|> Lexer.decimal)
+number = lexeme . fmap num $ Lexer.signed space (try float <|> decimal)
+  where
+  float = toRational <$> (Lexer.float :: Parser m Double)
+  decimal = toRational <$> (Lexer.decimal :: Parser m Integer)
 
 constants :: (JSON j, Monad m) => Parser m j
 constants = lexeme $

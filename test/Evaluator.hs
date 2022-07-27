@@ -79,6 +79,8 @@ evalTests = do
       ".a - .b" `appliedTo` "{\"a\": 3, \"b\": 2}" `shouldReturn` num 1
     it "Division is multipilcation with second argument inverted." $
       ".a / .b" `appliedTo` "{\"a\": 3, \"b\": 4}" `shouldReturn` num 0.75
+    it "Division by zero yields an error." $
+      ".a / .b" `appliedTo` "{\"a\": 3, \"b\": 0}" `shouldThrow` zeroDivision 
   describe "Test calling prefix named functions." $ do
     it "Function's name followed by arguments calls the function." $
       "plus 1 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 4
@@ -140,11 +142,16 @@ notAnArray _ _ = False
 negativeIndex :: Int -> Selector [SomeException]
 negativeIndex expected [e] = case fromException e of
   Just (NegativeIndex i) -> expected == i
-  Nothing -> False
+  _ -> False
 negativeIndex _ _ = False
 
 notANumber :: JsonAst -> Selector [SomeException]
 notANumber expected [e] = case fromException e of
   Just (NotANumber json) -> expected == json
-  Nothing -> False
+  _ -> False
 notANumber _ _ = False
+
+zeroDivision :: Selector [SomeException]
+zeroDivision es = case fromException $ last es of
+  Just ZeroDivision -> True
+  _ -> False

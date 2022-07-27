@@ -6,9 +6,9 @@ module Data.Hash (
   hashEnum
 ) where
 
-
 import Data.Bits (Bits(..))
 import Data.List (unfoldr)
+import Data.Ratio (numerator, denominator)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Word (Word8, Word64)
@@ -117,10 +117,9 @@ hashString = flip (Text.foldl' absorbChar)
   absorbChar :: Hash -> Char -> Hash
   absorbChar h c = h `xor` hashEnum c 
 
-hashNum :: Double -> Hash -> Hash
+hashNum :: Rational -> Hash -> Hash
 hashNum n h =
-  let (sig, expo) = decodeFloat n in
-  h `xor` hashEnum (hashEnum sig `xor` hashEnum expo)
+  h `xor` hashEnum (hashEnum (numerator n) `xor` hashEnum (denominator n))
 
 hashBool :: Bool -> Hash
 hashBool True = 0x632d8abc541004ccfe021456ecd21933

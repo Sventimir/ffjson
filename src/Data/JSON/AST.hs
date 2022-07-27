@@ -18,7 +18,7 @@ import Data.Text (Text)
 
 
 data JsonAst = JString Text
-             | JNum Double
+             | JNum Rational
              | JBool Bool
              | JNull
              | JArray [JsonAst]
@@ -57,10 +57,12 @@ instance Show TypeError where
 
 instance Exception TypeError where
 
-newtype ValueError = NegativeIndex Int
+data ValueError = NegativeIndex Int
+                   | ZeroDivision
 
 instance Show ValueError where
   show (NegativeIndex i) = "Negative array index: " ++ show i ++ "!"
+  show ZeroDivision = "Cannot divide by zero!"
 
 instance Exception ValueError
 
@@ -73,6 +75,6 @@ expectObject :: JsonAst -> EitherTrace [(Text, JsonAst)]
 expectObject (JObject kvs) = return kvs
 expectObject j = throwM $ NotAnObject j
 
-expectNumber :: JsonAst -> EitherTrace Double
+expectNumber :: JsonAst -> EitherTrace Rational
 expectNumber (JNum n) = return n
 expectNumber j = throwM $ NotANumber j

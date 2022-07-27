@@ -11,7 +11,7 @@ import Data.Text (Text)
 
 class JSON json where
   str :: Text -> json
-  num :: Double -> json
+  num :: Rational -> json
   bool :: Bool -> json
   null :: json
   array :: [json] -> json

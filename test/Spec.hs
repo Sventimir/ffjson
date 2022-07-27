@@ -2,6 +2,7 @@
 import Prelude hiding (null)
 import Test.Hspec
 import Test.QuickCheck
+import Data.Ratio ((%))
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -13,6 +14,8 @@ import Parser.JSON
 
 import CLI (cliTests)
 import Evaluator (evalTests)
+
+import Debug.Trace
 
 
 main :: IO ()
@@ -41,8 +44,10 @@ genNull, genBool, genNum, genString, genArray, genObject ::
   (Show json, JSON json) => Gen (Wrapson json)
 genNull = return $ Wrapson null
 genBool = Wrapson . bool <$> chooseAny
-genNum = Wrapson . num <$> chooseAny
-genString = Wrapson . str . Text.pack <$> listOf chooseAny
+-- We rely on generating Doubles, because if we were to generate a fraction having
+-- an infinite binary expansion, the test would inevitably fail.
+genNum = Wrapson . (num . toRational) <$> (chooseAny :: Gen Double)
+genString = Wrapson . str . Text.pack <$> listOf (chooseEnum ('0', 'z'))
 genArray = do
   s <- chooseInt (0, 10)
   fmap (Wrapson . array . map fromWrapson) . resize s $ listOf arbitrary

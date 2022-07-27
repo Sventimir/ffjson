@@ -74,7 +74,7 @@ enclose hd body tl =
 
 instance JSON (Repr r) where
   str s = Repr $ "\"" <> return s <> "\""
-  num n = Repr $ return (toText n)
+  num n = Repr $ return (toText (fromRational n :: Double))
   bool True = Repr "true"
   bool False = Repr "false"
   null = Repr "null"

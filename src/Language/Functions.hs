@@ -16,7 +16,7 @@ import Control.Monad.Catch (MonadThrow(..))
 import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
-import Data.JSON.AST (JsonAst(..), TypeError(..), expectNumber)
+import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectNumber)
 
 
 class Functions j where
@@ -50,7 +50,9 @@ numNeg j = do
 numRecip :: JsonF
 numRecip j = do
   n <- expectNumber j
-  return . num $ recip n
+  if n == 0
+    then throwM ZeroDivision
+    else return . num $ recip n
 
 numPlus :: JsonF2
 numPlus l r = do
