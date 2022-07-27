@@ -3,22 +3,18 @@ module Language.Functions (
   Functions(..),
   keysAst,
   arrayMap,
+  numNeg,
   numPlus,
-  numMult
+  numMult,
+  minus
 ) where
 
-import Control.Applicative (Alternative(..))
 import Control.Monad.Catch (MonadThrow(..))
-import Control.Monad.Fix (fix)
 
-import Data.Error.Trace (EitherTrace, ofEither)
+import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), expectNumber)
-import Data.Text (Text)
-
-import Parser.JSON (Parser, lexeme, punctuation)
-import qualified Text.Megaparsec as Megaparsec
 
 
 class Functions j where
@@ -26,6 +22,7 @@ class Functions j where
   compose :: j -> j -> j
   keys :: j -> j
   jmap :: j -> j
+  neg :: j -> j
   plus :: j -> j -> j
   mult :: j -> j -> j
 
@@ -42,6 +39,11 @@ arrayMap :: JsonF -> JsonF
 arrayMap f (JArray items) = JArray <$> mapM f items
 arrayMap _ json = throwM $ NotAnArray json
 
+numNeg :: JsonF
+numNeg j = do
+  n <- expectNumber j
+  return $ num (-n)
+
 numPlus :: JsonF2
 numPlus l r = do
   a <- expectNumber l
@@ -54,6 +56,9 @@ numMult l r = do
   b <- expectNumber r
   return $ num (a * b)
 
+minus :: Functions j => j -> j -> j
+minus a b = plus a $ neg b
+
 instance Functions (Repr j) where
   identity = Repr $ return "id"
   compose (Repr l) (Repr r) = Repr $ do
@@ -62,5 +67,6 @@ instance Functions (Repr j) where
     return a <> " | " <> return b
   keys (Repr j) = Repr $ "keys" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
+  neg (Repr j) = Repr $ "neg" <> j
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r
   mult (Repr l) (Repr r) = Repr $ l <> " * " <> r

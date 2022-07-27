@@ -38,6 +38,7 @@ instance Functions Eval where
   compose (Eval l) (Eval r) = Eval (l >=> r)
   keys (Eval j) = Eval (j >=> Fun.keysAst)
   jmap (Eval f) = Eval $ Fun.arrayMap f
+  neg (Eval j) = Eval (j >=> Fun.numNeg)
   plus (Eval l) (Eval r) =
     Eval $ \j -> do
       a <- l j

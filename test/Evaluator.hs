@@ -66,7 +66,7 @@ evalTests = do
     it "Complex expressions in dictionary." $
       "{\"a\": (keys .x), \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
         `shouldReturn` obj [("a", array []), ("b", num 1)]
-  describe "Test addition" $ do
+  describe "Test arithmetic" $ do
     it "Add two properties of an object." $
       ".a + .b" `appliedTo` "{\"a\": 1, \"b\": 2}" `shouldReturn` num 3
     it "Add a property to a constant" $
@@ -75,6 +75,8 @@ evalTests = do
       ".[0] + .[1] + .[2]" `appliedTo` "[4, 5, 6]" `shouldReturn` num 15
     it "Only numbers add." $
       ".a + 3" `appliedTo` "{\"a\": null}" `shouldThrow` notANumber null
+    it "Subtraction is addition with second argument negated." $
+      ".a - .b" `appliedTo` "{\"a\": 3, \"b\": 2}" `shouldReturn` num 1
   describe "Test calling prefix named functions." $ do
     it "Function's name followed by arguments calls the function." $
       "plus 1 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 4
