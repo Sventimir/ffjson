@@ -101,8 +101,12 @@ reprS (Repr json) cfg =
               indentStep = indentationStep cfg,
               printNum = if printRationals cfg then numAsRatio else numAsDecimal})
   where
-  numAsDecimal n = toText (fromRational n :: Double)
-  numAsRatio n = toText (numerator n) <> " / " <> toText (denominator n)
+  numAsDecimal n
+    | denominator n == 1 = toText $ numerator n
+    | otherwise = toText (fromRational n :: Double)
+  numAsRatio n
+    | denominator n == 1 = toText $ numerator n
+    | otherwise = toText (numerator n) <> " / " <> toText (denominator n)
 
 instance Show (Repr String) where
   show r = reprS r defaultReprConfig Text.unpack
