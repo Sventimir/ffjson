@@ -9,6 +9,8 @@ module Data.Error.Trace (
   ofEither,
   liftEither,
   liftTrace,
+  traceError,
+  traceErrorT,
   runExceptTraceT,
   runToIO,
   (!:)
@@ -74,6 +76,10 @@ eitherJustTrace :: Exception e => e -> Maybe a -> EitherTrace a
 eitherJustTrace exn Nothing = throwM exn
 eitherJustTrace _ (Just a) = return a
 
+traceError :: Exception e => e -> EitherTrace a -> EitherTrace a
+traceError e (EitherTrace (Left (Trace es))) = EitherTrace . Left $ Trace (SomeException e : es)
+traceError _ right = right
+
 runEitherTrace :: EitherTrace a -> Either [SomeException] a
 runEitherTrace = coerce
 
@@ -112,6 +118,13 @@ liftTrace = ExceptTraceT . ExceptT . return . coerce
 liftEither :: (Monad m, Exception e) => Either e a -> ExceptTraceT m a
 liftEither (Left e) = ExceptTraceT . ExceptT . return . Left $ singleError e
 liftEither (Right a) = ExceptTraceT . ExceptT . return $ Right a
+
+traceErrorT :: (Monad m, Exception e) => e -> ExceptTraceT m a -> ExceptTraceT m a
+traceErrorT e (ExceptTraceT (ExceptT m)) = ExceptTraceT $ ExceptT $ do
+  r <- m
+  case r of
+    Left (Trace es) -> return . Left $ Trace (SomeException e : es)
+    right -> return right
 
 runExceptTraceT :: Monad m => ExceptTraceT m a -> m (Either Trace a)
 runExceptTraceT = runExceptT . coerce
