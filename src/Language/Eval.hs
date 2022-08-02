@@ -36,25 +36,23 @@ instance Syntax Eval where
 instance Functions Eval where
   identity = Eval return
   compose (Eval l) (Eval r) = Eval (l >=> r)
-  keys (Eval j) = Eval (j >=> Fun.keysAst)
   jmap (Eval f) = Eval $ Fun.arrayMap f
-  neg (Eval j) = Eval (j >=> Fun.numNeg)
-  recipr (Eval j) = Eval (j >=> Fun.numRecip)
-  plus (Eval l) (Eval r) =
-    Eval $ \j -> do
-      a <- l j
-      b <- r j
-      Fun.numPlus a b
-  mult (Eval l) (Eval r) =
-    Eval $ \j -> do
-      a <- l j
-      b <- r j
-      Fun.numMult a b
-  equal (Eval l) (Eval r) =
-    Eval $ \j -> do
-      a <- l j
-      b <- r j
-      Fun.eq a b
+  keys = uniop Fun.keysAst
+  neg = uniop Fun.numNeg
+  recipr = uniop Fun.numRecip
+  plus = binop Fun.numPlus
+  mult = binop Fun.numMult
+  equal = binop Fun.eq
 
 mconst :: Monad m => a -> b -> m a
 mconst = const . return
+
+uniop :: (JsonAst -> EitherTrace JsonAst) -> Eval -> Eval
+uniop op (Eval j) = Eval (j >=> op)
+
+binop :: (JsonAst -> JsonAst -> EitherTrace JsonAst) -> Eval -> Eval -> Eval
+binop op (Eval l) (Eval r) =
+  Eval $ \j -> do
+    a <- l j
+    b <- r j
+    op a b
