@@ -105,7 +105,14 @@ evalTests = do
       "map (id + 1)" `appliedTo` "[1, 2, 3]" `shouldReturn` array [num 2, num 3, num 4]
     it "Parts of an element can also be accessed." $ do
       "map (.a * .b)" `appliedTo` "[{\"a\": 3, \"b\": 2}, {\"a\": 5, \"b\": 3}]" `shouldReturn` array [num 6, num 15]
-
+  describe "Test comparison functions." $ do
+    it "Any two expressions can be compare for equality." $
+      ".a = .b" `appliedTo` "{\"a\": 1, \"b\": null}" `shouldReturn` bool False
+    it "Two the same values compare as equal" $
+      "(.a + .b) = .c" `appliedTo` "{\"a\": 1, \"b\": 2, \"c\": 3}" `shouldReturn` bool True
+    it "Equality does not fail on type mismatch (just returns false)." $
+      ".a = 12.34" `appliedTo` "{\"a\": \"some string\"}" `shouldReturn` bool False
+      
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
   json <- liftTrace $ JsonParser.parseJSON jsonTxt

@@ -50,6 +50,11 @@ instance Functions Eval where
       a <- l j
       b <- r j
       Fun.numMult a b
+  equal (Eval l) (Eval r) =
+    Eval $ \j -> do
+      a <- l j
+      b <- r j
+      Fun.eq a b
 
 mconst :: Monad m => a -> b -> m a
 mconst = const . return

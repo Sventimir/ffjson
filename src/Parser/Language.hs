@@ -116,6 +116,7 @@ operators = Map.fromList [
     ("-", Functions.minus),
     ("*", Functions.mult),
     ("/", Functions.divide),
+    ("=", Functions.equal),
     ("|", Functions.compose)
   ]
 

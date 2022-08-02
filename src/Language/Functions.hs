@@ -8,15 +8,17 @@ module Language.Functions (
   numPlus,
   numMult,
   minus,
-  divide
+  divide,
+  eq
 ) where
 
 import Control.Monad.Catch (MonadThrow(..))
 
 import Data.Error.Trace (EitherTrace)
+import Data.Hash (hash)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
-import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectNumber)
+import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectNumber, toJSON)
 
 
 class Functions j where
@@ -28,6 +30,7 @@ class Functions j where
   recipr :: j -> j
   plus :: j -> j -> j
   mult :: j -> j -> j
+  equal :: j -> j -> j
 
 
 type JsonF = JsonAst -> EitherTrace JsonAst -- a unary operation on JSON
@@ -72,6 +75,9 @@ minus a b = plus a $ neg b
 divide :: Functions j => j -> j -> j
 divide a b = mult a $ recipr b
 
+eq :: JsonF2
+eq l r = return . bool $ hash (toJSON l) == hash (toJSON r)
+
 instance Functions (Repr j) where
   identity = Repr $ return "id"
   compose (Repr l) (Repr r) = Repr $ do
@@ -84,3 +90,4 @@ instance Functions (Repr j) where
   recipr (Repr j) = Repr $ "recip" <> j
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r
   mult (Repr l) (Repr r) = Repr $ l <> " * " <> r
+  equal (Repr l) (Repr r) = Repr $ l <> " = =" <> r
