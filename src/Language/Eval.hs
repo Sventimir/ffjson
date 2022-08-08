@@ -43,6 +43,10 @@ instance Functions Eval where
   plus = binop Fun.numPlus
   mult = binop Fun.numMult
   equal = binop Fun.eq
+  lt = binop (Fun.cmp [LT])
+  lte = binop (Fun.cmp [LT, EQ])
+  gt = binop (Fun.cmp [GT])
+  gte = binop (Fun.cmp [GT, EQ])
 
 mconst :: Monad m => a -> b -> m a
 mconst = const . return

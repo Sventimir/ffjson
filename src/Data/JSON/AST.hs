@@ -6,7 +6,8 @@ module Data.JSON.AST (
   toJSON,
   expectArray,
   expectObject,
-  expectNumber
+  expectNumber,
+  cmpr
 ) where
 
 import Control.Monad.Catch (Exception, MonadThrow(..))
@@ -58,11 +59,15 @@ instance Show TypeError where
 instance Exception TypeError where
 
 data ValueError = NegativeIndex Int
-                   | ZeroDivision
+                | ZeroDivision
+                | Incomparable JsonAst (Maybe JsonAst)
 
 instance Show ValueError where
   show (NegativeIndex i) = "Negative array index: " ++ show i ++ "!"
   show ZeroDivision = "Cannot divide by zero!"
+  show (Incomparable j Nothing) = "Value '" ++ show j ++ "' is incmprarable!"
+  show (Incomparable j (Just k)) = "Values '" ++ show j ++ "' and '"
+                                   ++ show k ++ "' cannot be compared!"
 
 instance Exception ValueError
 
@@ -78,3 +83,16 @@ expectObject j = throwM $ NotAnObject j
 expectNumber :: JsonAst -> EitherTrace Rational
 expectNumber (JNum n) = return n
 expectNumber j = throwM $ NotANumber j
+
+cmpr :: JsonAst -> JsonAst -> EitherTrace Ordering
+cmpr (JString a) (JString b) = return $ compare a b
+cmpr (JNum a) (JNum b) = return $ compare a b
+cmpr (JBool a) (JBool b) = return $ compare a b
+cmpr arr@(JArray _) _ = throwM $ Incomparable arr Nothing
+cmpr obj@(JObject _) _ = throwM $ Incomparable obj Nothing
+cmpr _ arr@(JArray _) = throwM $ Incomparable arr Nothing
+cmpr _ obj@(JObject _) = throwM $ Incomparable obj Nothing
+cmpr JNull JNull = return EQ
+cmpr JNull _ = return LT
+cmpr _ JNull = return GT
+cmpr a b = throwM $ Incomparable a (Just b)
