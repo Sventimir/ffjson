@@ -47,6 +47,9 @@ instance Functions Eval where
   lte = binop (Fun.cmp [LT, EQ])
   gt = binop (Fun.cmp [GT])
   gte = binop (Fun.cmp [GT, EQ])
+  and = binop Fun.jand
+  or = binop Fun.jor
+  not = uniop Fun.jnot
 
 mconst :: Monad m => a -> b -> m a
 mconst = const . return

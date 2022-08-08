@@ -7,6 +7,7 @@ module Data.JSON.AST (
   expectArray,
   expectObject,
   expectNumber,
+  expectBool,
   cmpr
 ) where
 
@@ -50,11 +51,13 @@ instance Show JsonAst where
 data TypeError = NotAnObject JsonAst
                | NotAnArray JsonAst
                | NotANumber JsonAst
+               | NotABoolean JsonAst
 
 instance Show TypeError where
   show (NotAnObject j) = "Not an object: '" ++ show j ++ "'!"
   show (NotAnArray j) = "Not an array: '" ++ show j ++ "'!"
   show (NotANumber j) = "Not a number: '" ++ show j ++ "'!"
+  show (NotABoolean j) = "Not a boolean value: '" ++ show j ++ "'!"
 
 instance Exception TypeError where
 
@@ -83,6 +86,10 @@ expectObject j = throwM $ NotAnObject j
 expectNumber :: JsonAst -> EitherTrace Rational
 expectNumber (JNum n) = return n
 expectNumber j = throwM $ NotANumber j
+
+expectBool :: JsonAst -> EitherTrace Bool
+expectBool (JBool b) = return b
+expectBool j = throwM $ NotABoolean j
 
 cmpr :: JsonAst -> JsonAst -> EitherTrace Ordering
 cmpr (JString a) (JString b) = return $ compare a b

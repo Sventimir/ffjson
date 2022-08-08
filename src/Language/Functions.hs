@@ -10,7 +10,10 @@ module Language.Functions (
   minus,
   divide,
   eq,
-  cmp
+  cmp,
+  jand,
+  jor,
+  jnot
 ) where
 
 import Control.Monad.Catch (MonadThrow(..))
@@ -19,7 +22,8 @@ import Data.Error.Trace (EitherTrace)
 import Data.Hash (hash)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
-import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectNumber, toJSON, cmpr)
+import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectBool,
+                      expectNumber, toJSON, cmpr)
 
 
 class Functions j where
@@ -38,6 +42,9 @@ class Functions j where
   lte :: j -> j -> j
   gt :: j -> j -> j
   gte :: j -> j -> j
+  or :: j -> j -> j
+  and :: j -> j -> j
+  not :: j -> j
 
   
 type JsonF = JsonAst -> EitherTrace JsonAst -- a unary operation on JSON
@@ -90,6 +97,24 @@ eq l r = return . bool $ hash (toJSON l) == hash (toJSON r)
 cmp :: [Ordering] -> JsonF2
 cmp ords l r = bool . flip any ords . (==) <$> cmpr l r
 
+jnot :: JsonF
+jnot j = do
+  b <- expectBool j
+  return . JBool $ Prelude.not b
+
+jand :: JsonF2
+jand l r = do
+  a <- expectBool l
+  b <- expectBool r
+  return . JBool $ a && b
+
+jor :: JsonF2
+jor l r = do
+  a <- expectBool l
+  b <- expectBool r
+  return . JBool $ a || b
+
+
 instance Functions (Repr j) where
   identity = Repr $ return "id"
   compose (Repr l) (Repr r) = Repr $ do
@@ -107,3 +132,6 @@ instance Functions (Repr j) where
   lte (Repr l) (Repr r) = Repr $ l <> " <= " <> r
   gt (Repr l) (Repr r) = Repr $ l <> " > " <> r
   gte (Repr l) (Repr r) = Repr $ l <> " >= " <> r
+  and (Repr l) (Repr r) = Repr $ l <> " && " <> r
+  or (Repr l) (Repr r) = Repr $ l <> " || " <> r
+  not (Repr j) = Repr $ "not" <> j
