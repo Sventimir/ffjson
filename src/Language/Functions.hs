@@ -72,16 +72,10 @@ numRecip j = do
     else return . num $ recip n
 
 numPlus :: JsonF2
-numPlus l r = do
-  a <- expectNumber l
-  b <- expectNumber r
-  return $ num (a + b)
+numPlus = unitypedBinop expectNumber (+) num
 
 numMult :: JsonF2
-numMult l r = do
-  a <- expectNumber l
-  b <- expectNumber r
-  return $ num (a * b)
+numMult = unitypedBinop expectNumber (*) num
 
 minus :: Functions j => j -> j -> j
 minus a b = plus a $ neg b
@@ -98,21 +92,19 @@ cmp :: [Ordering] -> JsonF2
 cmp ords l r = bool . flip any ords . (==) <$> cmpr l r
 
 jnot :: JsonF
-jnot j = do
-  b <- expectBool j
-  return . JBool $ Prelude.not b
+jnot j = JBool . Prelude.not <$> expectBool j
 
 jand :: JsonF2
-jand l r = do
-  a <- expectBool l
-  b <- expectBool r
-  return . JBool $ a && b
+jand = unitypedBinop expectBool (&&) bool
 
 jor :: JsonF2
-jor l r = do
-  a <- expectBool l
-  b <- expectBool r
-  return . JBool $ a || b
+jor = unitypedBinop expectBool (||) bool
+
+unitypedBinop :: (JsonAst -> EitherTrace a) -> (a -> a -> a) -> (a -> JsonAst) ->JsonF2
+unitypedBinop checkType op constr l r = do
+  a <- checkType l
+  b <- checkType r
+  return . constr $ op a b
 
 
 instance Functions (Repr j) where
