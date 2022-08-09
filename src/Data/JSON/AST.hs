@@ -52,12 +52,14 @@ data TypeError = NotAnObject JsonAst
                | NotAnArray JsonAst
                | NotANumber JsonAst
                | NotABoolean JsonAst
+               | NotSized JsonAst
 
 instance Show TypeError where
   show (NotAnObject j) = "Not an object: '" ++ show j ++ "'!"
   show (NotAnArray j) = "Not an array: '" ++ show j ++ "'!"
   show (NotANumber j) = "Not a number: '" ++ show j ++ "'!"
   show (NotABoolean j) = "Not a boolean value: '" ++ show j ++ "'!"
+  show (NotSized j) = "'" ++ show j ++ "' does not have any size!"
 
 instance Exception TypeError where
 

@@ -16,7 +16,8 @@ module Language.Functions (
   jand,
   jor,
   jnot,
-  jtry
+  jtry,
+  structSize
 ) where
 
 import Control.Monad (filterM, (>=>))
@@ -28,12 +29,14 @@ import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectBool,
                       expectNumber, expectArray, toJSON, cmpr)
+import qualified Data.Text as Text
 
 
 class Functions j where
   identity :: j
   compose :: j -> j -> j
   keys :: j -> j
+  size :: j -> j
   jmap :: j -> j
   jfilter :: j -> j
   optMap :: j -> j -> j
@@ -61,6 +64,12 @@ type JsonF2 = JsonAst -> JsonF              -- a binary operation on JSON
 keysAst :: JsonF
 keysAst (JObject kvs) = return . array $ map (str . fst) kvs
 keysAst json = throwM $ NotAnObject json
+
+structSize :: JsonF
+structSize (JArray js) = return . num . toRational $ length js
+structSize (JObject js) = return . num . toRational $ length js
+structSize (JString s) = return . num . toRational $ Text.length s
+structSize j = throwM $ NotSized j
 
 arrayMap :: JsonF -> JsonF
 arrayMap f json = do
@@ -139,6 +148,7 @@ instance Functions (Repr j) where
     b <- r
     return a <> " | " <> return b
   keys (Repr j) = Repr $ "keys" <> j
+  size (Repr j) = Repr $ "size" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   jfilter (Repr f) = Repr $ "filter (" <> f <> ")"
   optMap (Repr opt) (Repr f) = Repr $ opt <> " ? " <> f

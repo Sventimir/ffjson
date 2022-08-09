@@ -40,6 +40,7 @@ instance Functions Eval where
   jfilter (Eval f) = Eval $ Fun.arrayFilter f
   optMap (Eval opt) (Eval f) = Eval $ Fun.optionMap f opt
   keys = uniop Fun.keysAst
+  size = uniop Fun.structSize
   neg = uniop Fun.numNeg
   recipr = uniop Fun.numRecip
   plus = binop Fun.numPlus

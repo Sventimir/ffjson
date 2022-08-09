@@ -127,6 +127,13 @@ evalTests = do
       ".a ? (id + 2)" `appliedTo` "{\"a\": []}" `shouldThrow` notANumber (array [])
     it "Try function catches any error and returns a null." $
       "try (.a + .b)" `appliedTo` "{}" `shouldReturn` null
+  describe "Test size function." $ do
+    it "Size returns the size of an array." $
+      "size .a" `appliedTo` "{\"a\": []}" `shouldReturn` num 0
+    it "Likewise size returns the size of an object" $
+      "filter (size id > 0)" `appliedTo` "[{}, {}, {\"a\": 1}]" `shouldReturn` array [obj [("a", num 1)]]
+    it "Size also returns length of a string." $
+      "size .[0]" `appliedTo` "[\"JSON\"]" `shouldReturn` num 4
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
