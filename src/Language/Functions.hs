@@ -11,6 +11,7 @@ module Language.Functions (
   numMult,
   minus,
   divide,
+  strConcat,
   eq,
   cmp,
   jand,
@@ -30,7 +31,8 @@ import Data.Hash (hash)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectBool,
-                      expectNumber, expectArray, expectObject, toJSON, cmpr)
+                      expectNumber, expectString, expectArray, expectObject,
+                      toJSON, cmpr)
 import qualified Data.Text as Text
 
 class Functions j where
@@ -50,6 +52,7 @@ class Functions j where
   recipr :: j -> j
   plus :: j -> j -> j
   mult :: j -> j -> j
+  concat :: j -> j -> j
   equal :: j -> j -> j
   -- It would be nice perhaps to squash these into a generic compare,
   -- but it's not obvious, how to do it.
@@ -136,6 +139,9 @@ minus a b = plus a $ neg b
 divide :: Functions j => j -> j -> j
 divide a b = mult a $ recipr b
 
+strConcat :: JsonF2
+strConcat = unitypedBinop expectString Text.append str
+
 -- eq cannot be separated in terms of cmp, because it works on any
 -- types, while cmp requires operands' types to match.
 eq :: JsonF2
@@ -185,6 +191,7 @@ instance Functions (Repr j) where
   recipr (Repr j) = Repr $ "recip" <> j
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r
   mult (Repr l) (Repr r) = Repr $ l <> " * " <> r
+  concat (Repr l) (Repr r) = Repr $ l <> " <> " <> r
   equal (Repr l) (Repr r) = Repr $ l <> " = " <> r
   lt (Repr l) (Repr r) = Repr $ l <> " < " <> r
   lte (Repr l) (Repr r) = Repr $ l <> " <= " <> r

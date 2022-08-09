@@ -50,6 +50,7 @@ instance Functions Eval where
   recipr = uniop Fun.numRecip
   plus = binop Fun.numPlus
   mult = binop Fun.numMult
+  concat = binop Fun.strConcat
   equal = binop Fun.eq
   lt = binop (Fun.cmp [LT])
   lte = binop (Fun.cmp [LT, EQ])
