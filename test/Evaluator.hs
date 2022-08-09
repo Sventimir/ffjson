@@ -112,6 +112,10 @@ evalTests = do
       "(.a + .b) = .c" `appliedTo` "{\"a\": 1, \"b\": 2, \"c\": 3}" `shouldReturn` bool True
     it "Equality does not fail on type mismatch (just returns false)." $
       ".a = 12.34" `appliedTo` "{\"a\": \"some string\"}" `shouldReturn` bool False
+    it "Order of array elements matters for equality." $
+      ".a = [1, 2, 3]" `appliedTo` "{\"a\": [3, 2, 1]}" `shouldReturn` bool False
+    it "Order of object properties DOES NOT matter for equality." $
+      "id = {\"a\": 1, \"b\": 2, \"c\": 3}" `appliedTo` "{\"c\": 3, \"b\": 2, \"a\": 1}" `shouldReturn` bool True
     it "Test less-than on numbers." $
       ".a < .b" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` bool True
     it "Test less-than-or-equal on strings" $

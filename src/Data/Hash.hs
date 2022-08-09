@@ -7,7 +7,7 @@ module Data.Hash (
 ) where
 
 import Data.Bits (Bits(..))
-import Data.List (unfoldr)
+import Data.List (unfoldr, sortBy)
 import Data.Ratio (numerator, denominator)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -125,6 +125,11 @@ hashBool :: Bool -> Hash
 hashBool True = 0x632d8abc541004ccfe021456ecd21933
 hashBool False = 0x2def321302ffac31b6b2189c0c9b12a0
 
+-- Because hashes are used for comparison, it is important that objects
+-- differing just by the order of their properties have the same hashes.
+sortObj :: [(Text, a)] -> [(Text, a)]
+sortObj = sortBy (\(k, _) (k', _) -> compare k k')
+
 hashObj :: (Text, RollingHash) -> RollingHash
 hashObj (k, RollingHash vh) =
   RollingHash $ \h -> rotateL (hashString k $ rotateR (vh h) 1) 1
@@ -135,7 +140,7 @@ instance JSON RollingHash where
   bool b = RollingHash (flip rotateL 9 . xor (hashBool b))
   null = RollingHash $ flip rotateL 12
   array = concatRollingHashes (RollingHash $ flip rotateR 15)
-  obj = concatRollingHashes (RollingHash $ flip rotateL 18) . map hashObj
+  obj = concatRollingHashes (RollingHash $ flip rotateL 18) . map hashObj . sortObj
 
 instance Show RollingHash where
   show = show . hash
