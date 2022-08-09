@@ -38,6 +38,7 @@ instance Functions Eval where
   compose (Eval l) (Eval r) = Eval (l >=> r)
   jmap (Eval f) = Eval $ Fun.arrayMap f
   jfilter (Eval f) = Eval $ Fun.arrayFilter f
+  optMap (Eval opt) (Eval f) = Eval $ Fun.optionMap f opt
   keys = uniop Fun.keysAst
   neg = uniop Fun.numNeg
   recipr = uniop Fun.numRecip

@@ -122,6 +122,7 @@ operators = Map.fromList [
     ("<=", Functions.lte),
     (">", Functions.gt),
     (">=", Functions.gte),
+    ("?", Functions.optMap),
     ("|", Functions.compose)
   ]
 

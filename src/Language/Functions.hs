@@ -4,6 +4,7 @@ module Language.Functions (
   keysAst,
   arrayMap,
   arrayFilter,
+  optionMap,
   numNeg,
   numRecip,
   numPlus,
@@ -34,6 +35,7 @@ class Functions j where
   keys :: j -> j
   jmap :: j -> j
   jfilter :: j -> j
+  optMap :: j -> j -> j
   neg :: j -> j
   recipr :: j -> j
   plus :: j -> j -> j
@@ -67,6 +69,13 @@ arrayFilter :: JsonF -> JsonF
 arrayFilter f json = do
   items <- expectArray json
   JArray <$> filterM (f >=> expectBool) items
+
+optionMap :: JsonF -> JsonF -> JsonF
+optionMap f expr json = do
+  j <- expr json
+  case j of
+    JNull -> return JNull
+    _ -> f j
 
 numNeg :: JsonF
 numNeg j = do
@@ -125,6 +134,7 @@ instance Functions (Repr j) where
   keys (Repr j) = Repr $ "keys" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   jfilter (Repr f) = Repr $ "filter (" <> f <> ")"
+  optMap (Repr opt) (Repr f) = Repr $ opt <> " ? " <> f
   neg (Repr j) = Repr $ "neg" <> j
   recipr (Repr j) = Repr $ "recip" <> j
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r

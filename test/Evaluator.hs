@@ -118,6 +118,13 @@ evalTests = do
       ".a <= .b" `appliedTo` "{\"a\": \"aaa\", \"b\": \"ccc\"}" `shouldReturn` bool True
     it "Test comparison on array filtering." $
       "filter (id > 3)" `appliedTo` "[1, 2, 3, 4]" `shouldReturn` array [num 4]
+  describe "Test null handling." $ do
+    it "Question mark operator behaves like composition for non-nulls." $
+      ".a ? (id + 2)" `appliedTo` "{\"a\": 0}" `shouldReturn` num 2
+    it "Question mark operator maps null to null." $
+      ".a ? (id + 2)" `appliedTo` "{}" `shouldReturn` null
+    it "Question mark operator does not guard against type errors." $
+      ".a ? (id + 2)" `appliedTo` "{\"a\": []}" `shouldThrow` notANumber (array [])
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
