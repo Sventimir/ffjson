@@ -3,6 +3,7 @@ module Language.Functions (
   Functions(..),
   keysAst,
   arrayMap,
+  arrayFilter,
   numNeg,
   numRecip,
   numPlus,
@@ -16,6 +17,7 @@ module Language.Functions (
   jnot
 ) where
 
+import Control.Monad (filterM, (>=>))
 import Control.Monad.Catch (MonadThrow(..))
 
 import Data.Error.Trace (EitherTrace)
@@ -23,7 +25,7 @@ import Data.Hash (hash)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectBool,
-                      expectNumber, toJSON, cmpr)
+                      expectNumber, expectArray, toJSON, cmpr)
 
 
 class Functions j where
@@ -31,6 +33,7 @@ class Functions j where
   compose :: j -> j -> j
   keys :: j -> j
   jmap :: j -> j
+  jfilter :: j -> j
   neg :: j -> j
   recipr :: j -> j
   plus :: j -> j -> j
@@ -56,8 +59,14 @@ keysAst (JObject kvs) = return . array $ map (str . fst) kvs
 keysAst json = throwM $ NotAnObject json
 
 arrayMap :: JsonF -> JsonF
-arrayMap f (JArray items) = JArray <$> mapM f items
-arrayMap _ json = throwM $ NotAnArray json
+arrayMap f json = do
+  items <- expectArray json
+  JArray <$> mapM f items
+
+arrayFilter :: JsonF -> JsonF
+arrayFilter f json = do
+  items <- expectArray json
+  JArray <$> filterM (f >=> expectBool) items
 
 numNeg :: JsonF
 numNeg j = do
@@ -115,6 +124,7 @@ instance Functions (Repr j) where
     return a <> " | " <> return b
   keys (Repr j) = Repr $ "keys" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
+  jfilter (Repr f) = Repr $ "filter (" <> f <> ")"
   neg (Repr j) = Repr $ "neg" <> j
   recipr (Repr j) = Repr $ "recip" <> j
   plus (Repr l) (Repr r) = Repr $ l <> " + " <> r

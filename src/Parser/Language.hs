@@ -96,6 +96,7 @@ functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     constant "id" Functions.identity,
     function subexpr "keys" Functions.keys,
     function subexpr "map" Functions.jmap,
+    function subexpr "filter" Functions.jfilter,
     function subexpr "neg" Functions.neg,
     function subexpr "recip" Functions.recipr,
     function2 subexpr "plus" Functions.plus,

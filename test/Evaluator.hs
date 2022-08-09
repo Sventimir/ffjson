@@ -112,10 +112,12 @@ evalTests = do
       "(.a + .b) = .c" `appliedTo` "{\"a\": 1, \"b\": 2, \"c\": 3}" `shouldReturn` bool True
     it "Equality does not fail on type mismatch (just returns false)." $
       ".a = 12.34" `appliedTo` "{\"a\": \"some string\"}" `shouldReturn` bool False
-    it "test less-than on numbers." $
+    it "Test less-than on numbers." $
       ".a < .b" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` bool True
-    it "test less-than-or-equal on strings" $
+    it "Test less-than-or-equal on strings" $
       ".a <= .b" `appliedTo` "{\"a\": \"aaa\", \"b\": \"ccc\"}" `shouldReturn` bool True
+    it "Test comparison on array filtering." $
+      "filter (id > 3)" `appliedTo` "[1, 2, 3, 4]" `shouldReturn` array [num 4]
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
