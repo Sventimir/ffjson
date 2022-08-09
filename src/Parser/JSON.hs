@@ -16,24 +16,22 @@ module Parser.JSON (
 
 import Prelude hiding (null)
 import Control.Applicative ((<|>), many)
-import Data.Error.Trace (EitherTrace, ofEither)
+import Data.Error.Trace (EitherTrace)
 import Data.Function (fix)
 import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Parser.Core (Parser, ParseError, parse, lexeme, space, punctuation)
+import Parser.Core (Parser, ParseError, parse, lexeme, space, punctuation, consumeEverything)
 
-import Text.Megaparsec (ParsecT, empty, between, anySingleBut, chunk, sepBy,
-                        try)
+import Text.Megaparsec (between, anySingleBut, chunk, sepBy, try)
 import Text.Megaparsec.Char (char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
-import Text.Megaparsec.Error (ShowErrorComponent(..))
 
 
 
 parseJSON :: JSON j => Text -> EitherTrace j
-parseJSON = parse (fix json) ""
+parseJSON = parse (consumeEverything $ fix json) ""
 
 string :: Monad m => Parser m Text
 string = lexeme $

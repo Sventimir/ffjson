@@ -13,7 +13,7 @@ import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..))
 import Data.Text (Text)
 
 import Language.Eval
-import Parser.Core (parse)
+import Parser.Core (parse, consumeEverything)
 import qualified Parser.JSON as JsonParser
 import Parser.Language (exprParser)
 
@@ -134,11 +134,14 @@ evalTests = do
       "filter (size id > 0)" `appliedTo` "[{}, {}, {\"a\": 1}]" `shouldReturn` array [obj [("a", num 1)]]
     it "Size also returns length of a string." $
       "size .[0]" `appliedTo` "[\"JSON\"]" `shouldReturn` num 4
+  describe "All the input must always be consumed." $ do
+    it "Trailing characters raise an error." $ do
+      ".[0] + .[1] .[2]" `appliedTo` "[1, 2, 3]" `shouldThrow` anyException
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
   json <- liftTrace $ JsonParser.parseJSON jsonTxt
-  expr <- liftTrace $ parse exprParser "" exprTxt
+  expr <- liftTrace $ parse (consumeEverything exprParser) "" exprTxt
   liftTrace $ eval expr json
 
 instance (Monad m, JSON a) => JSON (ExceptTraceT m a) where

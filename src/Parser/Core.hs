@@ -4,7 +4,8 @@ module Parser.Core (
   parse,
   space,
   lexeme,
-  punctuation
+  punctuation,
+  consumeEverything
 ) where
 
 import Control.Monad.Catch (Exception)
@@ -56,3 +57,9 @@ punctuation = lexeme . char
 mapLeft :: (a -> b) -> Either a c -> Either b c
 mapLeft f (Left a) = Left (f a)
 mapLeft _ (Right c) = Right c
+
+consumeEverything :: Monad m => Parser m a -> Parser m a
+consumeEverything p = do
+  a <- p
+  () <- Megaparsec.eof
+  return a

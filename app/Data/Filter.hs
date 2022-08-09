@@ -14,6 +14,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import Language.Eval (Eval, eval)
 
+import Parser.Core (consumeEverything)
 import Parser.JSON (Parser, punctuation)
 import Parser.Language (exprParser)
 
@@ -44,7 +45,7 @@ parse :: Text -> EitherTrace Filter
 parse = ofEither . Megaparsec.parse parser ""
 
 parser :: Monad m => Parser m Filter
-parser = do
+parser = consumeEverything $ do
   inKey <- fromMaybe "0" <$> optional key
   expr <- exprParser
   outKey <- fromMaybe "0" <$> optional key
