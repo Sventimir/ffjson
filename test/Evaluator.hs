@@ -54,6 +54,8 @@ evalTests = do
   describe "Test filter composition." $ do
     it "Get from keys list." $
       "keys id | .[0]" `appliedTo` "{\"aaa\": [], \"zzz\": 12}" `shouldReturn` str "aaa"
+    it "Use compose function instead of operator." $
+      "compose (keys id) .[0]" `appliedTo` "{\"a\": null}" `shouldReturn` str "a"
   describe "Test parenthesised sub-expressions." $ do
     it "Parentheses enclose expressions." $ 
       "(keys id)" `appliedTo` "{}" `shouldReturn` array []
