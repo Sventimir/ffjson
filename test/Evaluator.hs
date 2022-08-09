@@ -125,6 +125,8 @@ evalTests = do
       ".a ? (id + 2)" `appliedTo` "{}" `shouldReturn` null
     it "Question mark operator does not guard against type errors." $
       ".a ? (id + 2)" `appliedTo` "{\"a\": []}" `shouldThrow` notANumber (array [])
+    it "Try function catches any error and returns a null." $
+      "try (.a + .b)" `appliedTo` "{}" `shouldReturn` null
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do

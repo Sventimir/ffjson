@@ -52,6 +52,7 @@ instance Functions Eval where
   and = binop Fun.jand
   or = binop Fun.jor
   not = uniop Fun.jnot
+  try (Eval j) = Eval $ Fun.jtry j
 
 mconst :: Monad m => a -> b -> m a
 mconst = const . return

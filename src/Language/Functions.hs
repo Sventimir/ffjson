@@ -15,13 +15,14 @@ module Language.Functions (
   cmp,
   jand,
   jor,
-  jnot
+  jnot,
+  jtry
 ) where
 
 import Control.Monad (filterM, (>=>))
 import Control.Monad.Catch (MonadThrow(..))
 
-import Data.Error.Trace (EitherTrace)
+import Data.Error.Trace (EitherTrace, runEitherTrace)
 import Data.Hash (hash)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
@@ -50,6 +51,7 @@ class Functions j where
   or :: j -> j -> j
   and :: j -> j -> j
   not :: j -> j
+  try :: j -> j
 
   
 type JsonF = JsonAst -> EitherTrace JsonAst -- a unary operation on JSON
@@ -118,6 +120,11 @@ jand = unitypedBinop expectBool (&&) bool
 jor :: JsonF2
 jor = unitypedBinop expectBool (||) bool
 
+jtry :: JsonF -> JsonF
+jtry f json = case runEitherTrace $ f json of
+  Right j -> return j
+  Left _ -> return JNull
+
 unitypedBinop :: (JsonAst -> EitherTrace a) -> (a -> a -> a) -> (a -> JsonAst) ->JsonF2
 unitypedBinop checkType op constr l r = do
   a <- checkType l
@@ -147,3 +154,4 @@ instance Functions (Repr j) where
   and (Repr l) (Repr r) = Repr $ l <> " && " <> r
   or (Repr l) (Repr r) = Repr $ l <> " || " <> r
   not (Repr j) = Repr $ "not" <> j
+  try (Repr j) = Repr $ "try" <> j
