@@ -17,10 +17,12 @@ module Language.Functions (
   jor,
   jnot,
   jtry,
-  structSize
+  structSize,
+  arrayReduce,
+  objUnion
 ) where
 
-import Control.Monad (filterM, (>=>))
+import Control.Monad (filterM, foldM, (>=>))
 import Control.Monad.Catch (MonadThrow(..))
 
 import Data.Error.Trace (EitherTrace, runEitherTrace)
@@ -28,9 +30,8 @@ import Data.Hash (hash)
 import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectBool,
-                      expectNumber, expectArray, toJSON, cmpr)
+                      expectNumber, expectArray, expectObject, toJSON, cmpr)
 import qualified Data.Text as Text
-
 
 class Functions j where
   identity :: j
@@ -39,6 +40,11 @@ class Functions j where
   size :: j -> j
   jmap :: j -> j
   jfilter :: j -> j
+  jsum :: j -> j
+  jproduct :: j -> j
+  jall :: j -> j
+  jany :: j -> j
+  union :: j -> j -> j
   optMap :: j -> j -> j
   neg :: j -> j
   recipr :: j -> j
@@ -80,6 +86,24 @@ arrayFilter :: JsonF -> JsonF
 arrayFilter f json = do
   items <- expectArray json
   JArray <$> filterM (f >=> expectBool) items
+
+arrayReduce :: JsonF2 -> JsonF
+arrayReduce f json = do
+  items <- expectArray json
+  case items of
+    [] -> return JNull
+    (i : is) -> foldM f i is
+
+objUnion :: JsonF2
+objUnion l r = do
+  a <- expectObject l
+  b <- expectObject r
+  return . JObject $ foldr update a b
+  where
+  update (k, v) [] = [(k, v)]
+  update (k', v') ((k, v) : acc)
+    | k == k' = (k', v') : acc
+    | otherwise = (k, v) : update (k', v') acc
 
 optionMap :: JsonF -> JsonF -> JsonF
 optionMap f expr json = do
@@ -151,6 +175,11 @@ instance Functions (Repr j) where
   size (Repr j) = Repr $ "size" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   jfilter (Repr f) = Repr $ "filter (" <> f <> ")"
+  jsum (Repr f) = Repr $ "sum (" <> f <> ")"
+  jproduct (Repr f) = Repr $ "product (" <> f <> ")"
+  jall (Repr f) = Repr $ "all (" <> f <> ")"
+  jany (Repr f) = Repr $ "any (" <> f <> ")"
+  union (Repr l) (Repr r) = Repr $ "union (" <> l <> " " <> r <> ")"
   optMap (Repr opt) (Repr f) = Repr $ opt <> " ? " <> f
   neg (Repr j) = Repr $ "neg" <> j
   recipr (Repr j) = Repr $ "recip" <> j

@@ -33,7 +33,7 @@ instance JSON JsonAst where
   bool = JBool
   null = JNull
   array = JArray
-  obj = JObject
+  obj = JObject 
 
 toJSON :: JsonAst -> (forall j. JSON j => j)
 toJSON (JString s) = JSON.str s

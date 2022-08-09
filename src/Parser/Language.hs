@@ -98,11 +98,16 @@ functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     function subexpr "size" Functions.size,
     function subexpr "map" Functions.jmap,
     function subexpr "filter" Functions.jfilter,
+    function subexpr "sum" Functions.jsum,
+    function subexpr "product" Functions.jproduct,
+    function subexpr "all" Functions.jall,
+    function subexpr "any" Functions.jany,
     function subexpr "neg" Functions.neg,
     function subexpr "recip" Functions.recipr,
     function subexpr "try" Functions.try,
     function2 subexpr "plus" Functions.plus,
     function2 subexpr "mult" Functions.mult,
+    function2 subexpr "union" Functions.union,
     function2 subexpr "compose" Functions.compose
   ]
 

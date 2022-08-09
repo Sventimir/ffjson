@@ -143,6 +143,11 @@ evalTests = do
   describe "All the input must always be consumed." $ do
     it "Trailing characters raise an error." $ do
       ".[0] + .[1] .[2]" `appliedTo` "[1, 2, 3]" `shouldThrow` anyException
+  describe "Test union of objects." $ do
+    it "Union with empty object is an identity." $
+      "union id {}" `appliedTo` "{\"a\": 12}" `shouldReturn` obj [("a", num 12)]
+    it "Union adds properties of the right object to the left one." $
+      "union {\"a\": true} id" `appliedTo` "{\"b\": false}" `shouldReturn` obj [("a", bool True), ("b", bool False)]
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
