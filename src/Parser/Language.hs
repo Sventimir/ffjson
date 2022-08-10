@@ -6,7 +6,6 @@ module Parser.Language (
 import Control.Applicative (Alternative(..))
 
 import Data.JSON (JSON(..))
-import qualified Data.Map as Map
 import Data.Function (fix)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -25,25 +24,13 @@ import qualified Text.Megaparsec.Char.Lexer as Lexer
 
 
 exprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
-exprParser = do
-  e <- simpleExprParser exprParser
-  withOperators e $ simpleExprParser exprParser
+exprParser = operators simpleExprParser
 
-withOperators :: (Monad m, Functions j) => j -> Parser m j -> Parser m j
-withOperators acc expr =
-  do
-    f <- Megaparsec.try operator
-    e <- expr
-    withOperators (f acc e) expr
-  <|> return acc
-  
-  
-
-simpleExprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j -> Parser m j
-simpleExprParser subexpr =
-  Megaparsec.try (JsonParser.json subexpr)
+simpleExprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
+simpleExprParser =
+  Megaparsec.try (JsonParser.json exprParser)
   <|> Megaparsec.try getter
-  <|> Megaparsec.try (functions $ fix simpleExprParser)
+  <|> Megaparsec.try (functions simpleExprParser)
   <|> parentheses exprParser
 
 
@@ -91,6 +78,13 @@ function2 subexpr name f = do
   arg <- subexpr
   f arg <$> subexpr
 
+operator :: (Monad m, Functions j) => Parser m j -> Text -> (j -> j -> j) -> Parser m j
+operator subexpr symbol f = do
+  leftArg <- subexpr
+  Megaparsec.option leftArg $ do
+    _ <- lexeme $ Megaparsec.chunk symbol
+    f leftArg <$> operator subexpr symbol f
+
 functions :: (Monad m, Functions j) => Parser m j -> Parser m j
 functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     constant "id" Functions.identity,
@@ -112,28 +106,23 @@ functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     function2 subexpr "compose" Functions.compose
   ]
 
-operator :: (Monad m, Functions j) => Parser m (j -> j -> j)
-operator = do
-  op <- lexeme $ Megaparsec.some (MegaparsecChar.symbolChar <|> MegaparsecChar.punctuationChar)
-  case Map.lookup op operators of
-    Nothing -> fail "Unknown operator"
-    Just f -> return f
-
-operators :: Functions j => Map.Map String (j -> j -> j)
-operators = Map.fromList [
-    ("+", Functions.plus),
-    ("-", Functions.minus),
-    ("*", Functions.mult),
-    ("/", Functions.divide),
+operators :: (Monad m, Functions j) => Parser m j -> Parser m j
+operators subexpr = foldr alt subexpr [
+    ("|", Functions.compose),
+    ("?", Functions.optMap),
     ("=", Functions.equal),
     ("<", Functions.lt),
     ("<=", Functions.lte),
     (">", Functions.gt),
     (">=", Functions.gte),
-    ("?", Functions.optMap),
-    ("<>", Functions.concat),
-    ("|", Functions.compose)
+    ("+", Functions.plus),
+    ("-", Functions.minus),
+    ("*", Functions.mult),
+    ("/", Functions.divide),
+    ("<>", Functions.concat)
   ]
+  where
+  alt (symbol, f) acc = Megaparsec.try (operator acc symbol f) <|> acc
 
 parentheses :: (Monad m, Syntax j) => Parser m j -> Parser m j
 parentheses = Megaparsec.between (punctuation '(') (punctuation ')')

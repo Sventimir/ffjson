@@ -66,7 +66,7 @@ evalTests = do
         `shouldReturn` str "z"
   describe "Test syntax in conjunction with standard JSON." $ do
     it "Complex expressions in dictionary." $
-      "{\"a\": (keys .x), \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
+      "{\"a\": keys .x, \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
         `shouldReturn` obj [("a", array []), ("b", num 1)]
   describe "Test arithmetic" $ do
     it "Add two properties of an object." $
@@ -90,14 +90,11 @@ evalTests = do
       "plus .a 1" `appliedTo` "{\"a\": 2}" `shouldReturn` num 3
     it "Function called with two getters also works." $
       "mult .[0] .[1]" `appliedTo` "[2, 5]" `shouldReturn` num 10
-      
-  -- For the moment we do not implement operator precedence, so by default
-  -- operations are evaluated in the order of appearance.
   describe "Test order of arithmetic operations" $ do
     it "By default operations are evaluated in the order of appearance." $
-      "1 + 2 * 3 + 4" `appliedTo` "[]" `shouldReturn` num 13
+      "1 + 2 * 3 + 4" `appliedTo` "[]" `shouldReturn` num 11
     it "Parentheses can modify operation precedence." $
-      "1 + (2 * 3) + 4" `appliedTo` "{}" `shouldReturn` num 11
+      "(1 + 2) * (3 + 4)" `appliedTo` "{}" `shouldReturn` num 21
     it "Function call binds more strongly than operators." $
       "(mult .[0] .[1]) + (mult .[2] .[3])" `appliedTo` "[2, 3, 4, 5]" `shouldReturn` num 26
     it "Parentheses bind more strongly than anything else." $

@@ -150,10 +150,6 @@ $ echo '{"a": {"b": 15, "c": 25}}' | ffjson -r -f '.a | (.b / .c)'
 0.6
 ```
 
-NOTE: There is no operator precedence currently implemented, so the
-parentheses are necessary to compose `.a` filter with the whole `.b / .c`
-expression rather than with `.b` only.
-
 The same program with `--ratios` option enabled will yield:
 
 ```
@@ -165,7 +161,7 @@ Finally the language contains **functions**, which are higher-order filters
 (like operators). Each function accepts a number of filters as arguments.
 Arguments must follow the function name, separated by spaces. No parentheses
 are required to call a function, unless a complex expression is being given as
-an argument. Currying is not implemented yet.
+an argument. Currying is not implemented.
 
 ```
 $ echo '{"a": 1, "b": 2, "c": 3}' | ffjson -r -f 'keys id'
