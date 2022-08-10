@@ -18,11 +18,12 @@ parseOutput txt = case strSplit ':' txt of
   (key : filename) ->  Output (pack key) (intercalate ":" filename)
 
 strSplit :: Char -> String -> [String]
-strSplit sep input = reverse $ doSplit [""] input
+strSplit sep = doSplit [""] 
   where
   doSplit :: [String] -> String -> [String]
-  doSplit acc [] = acc
-  doSplit [] (_ : _) = error "impossible" -- always called with non-empty acc
+  doSplit [] _ = error "impossible" -- always called with non-empty acc
+  doSplit (wrd : acc) [] = reverse (reverse wrd : acc)
   doSplit (cur : acc) (chr : rm)
     | chr == sep = doSplit ("" : reverse cur : acc) rm
     | otherwise = doSplit ((chr : cur) : acc) rm
+
