@@ -40,6 +40,7 @@ data InputError = InvalidInput String
 instance Exception InputError where
 
 data Input = FileInput String | UrlInput HTTP.Request
+  deriving Show
 
 parseInput :: Monad m => String -> ExceptTraceT m Input
 parseInput input = fmap UrlInput (HTTP.parseRequest input)
@@ -60,6 +61,7 @@ loadFile fname = liftIO $ withFile fname ReadMode Text.hGetContents
 
 
 newtype Inputs = Inputs (Map String Input)
+  deriving Show
 
 emptyInputs :: Inputs
 emptyInputs = Inputs Map.empty

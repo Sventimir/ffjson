@@ -25,6 +25,7 @@ data ReprConfig = ReprConfig {
     indentationStep :: Int,
     printRationals :: Bool -- if True, fractions are printed instead of decimals.
   }
+  deriving Show
 
 defaultReprConfig :: ReprConfig
 defaultReprConfig = ReprConfig {

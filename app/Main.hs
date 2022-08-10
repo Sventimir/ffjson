@@ -42,6 +42,7 @@ data Config = Config {
     outputs :: [Output],
     repr :: ReprConfig
   }
+  deriving Show
 
 setIndentation :: Int -> Config -> Config
 setIndentation i cfg = cfg { repr = (repr cfg) { indentationStep = i } }

@@ -17,6 +17,9 @@ import Language.Syntax (Syntax(..), getAst, indexAst)
 
 newtype Eval = Eval (JsonAst -> EitherTrace JsonAst)
 
+instance Show Eval where
+  show (Eval _) = "<code>"
+
 eval :: Eval -> JsonAst -> EitherTrace JsonAst
 eval (Eval f) = f
 

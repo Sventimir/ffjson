@@ -8,6 +8,7 @@ import Data.Text (Text, pack)
 
 -- Text argument represents a key in the streamset.
 data Output = Output Text FilePath
+  deriving Show
 
 
 parseOutput :: String -> Output
