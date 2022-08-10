@@ -1,6 +1,7 @@
 module Data.Output (
   Output(..),
-  parseOutput
+  parseOutput,
+  strSplit
 ) where
 
 import Data.List (intercalate)

@@ -6,11 +6,9 @@ module Data.Filter (
   exprParser
 ) where
 
-import Control.Monad.Catch (Exception(..))
-
-import Data.Error.Trace (EitherTrace, eitherJustTrace, ofEither)
-import Data.JsonStream (Streamset, getStream, addStream)
-import Data.Maybe (fromMaybe)
+import Data.Error.Trace (EitherTrace, ofEither)
+import qualified Data.JSON as JSON
+import Data.JsonStream (Streamset, getStreams, addStream)
 import Data.Text (Text, pack)
 import Language.Eval (Eval, eval)
 
@@ -18,26 +16,28 @@ import Parser.Core (consumeEverything)
 import Parser.JSON (Parser, punctuation)
 import Parser.Language (exprParser)
 
-import Text.Megaparsec (between, optional, some)
+import Text.Megaparsec (between, option, many, some)
 import Text.Megaparsec.Char (alphaNumChar)
 import qualified Text.Megaparsec as Megaparsec
 
 
 data Filter = Filter {
-    inputKey, outputKey :: Text,
+    inputKey :: [Text],
+    outputKey :: Text,
     filterExpr :: Eval
   }
-
-newtype FilterError = UnknownStream Text
   deriving Show
-
-instance Exception FilterError where
-  
 
 evaluate :: Filter -> Streamset -> EitherTrace Streamset
 evaluate flt streams = do
-  let k = inputKey flt
-  input <- eitherJustTrace (UnknownStream k) (getStream k streams)
+  let keys = case inputKey flt of
+        [] -> ["0"]
+        ks -> ks
+  ins <- getStreams keys streams
+  let input = case ins of
+        [] -> JSON.null
+        [(_, i)] -> i
+        _ -> JSON.obj ins
   output <- eval (filterExpr flt) input
   return $ addStream (outputKey flt) output streams
 
@@ -46,9 +46,9 @@ parse = ofEither . Megaparsec.parse parser ""
 
 parser :: Monad m => Parser m Filter
 parser = consumeEverything $ do
-  inKey <- fromMaybe "0" <$> optional key
+  inKey <- many key
   expr <- exprParser
-  outKey <- fromMaybe "0" <$> optional key
+  outKey <- option "0" key
   return $ Filter inKey outKey expr
 
 key :: Monad m => Parser m Text

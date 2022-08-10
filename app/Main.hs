@@ -87,9 +87,9 @@ instance CliArgs (ExceptTraceT IO) Config where
         outs = if null $ outputs cfg'
                then [Output "0" "/dev/stdout"]
                else outputs cfg' in
-    return $ (finalizeInput cfg) {
+    return $ cfg' {
         inputs = ins,
-        filters = reverse $ filters cfg,
+        filters = reverse $ filters cfg',
         outputs = outs
       }
   positional _ = throwM . UnexpectedPositional

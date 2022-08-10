@@ -29,6 +29,13 @@ stream and interpret it accordingly:
 $ ffjson -i https://example.com/api
 ```
 
+A single dash (`-`) can be used as a shorthand for the standard input
+(`/dev/stdin`):
+
+```
+$ ffjson -i -
+```
+
 Multiple input streams can be given like so:
 
 ```
@@ -43,7 +50,7 @@ $ ffjson -i /home/user/data.json -n data
 
 Unnamed input streams are assigned subsequent natural numbers (starting from
 0) as identifiers. In the absence of any `-i` options, standard input is
-assumed to be the sole input stream indexed with `0`.
+assumed to be the sole input stream identified by `"0"`.
 
 Output streams are added similarly to inputs using `-o` option. It should be
 followed by the name (or index) of a stream to output. Optionally the name
@@ -183,3 +190,35 @@ $ echo '[{"a": 1, "b": 2}, {"a": 3, "b": 4}]' | ffjson -r -f 'map (.a + .b)'
 For more examples, consult test cases in `tests/Evaulator.hs`. A full list of
 available functions and operators will be supplied later. For the moment they
 can be found in the source code, in `src/Parser/Language.hs`.
+
+## Filters and streams
+
+As stated previously all unnamed input streams are given consecutive natural
+numbers as their names. If a filter does not specify the input stream it works
+with (as is the case in all the examples above), it is assumed to consume the
+input `"0"`. The input stream can by specified explicitly like so:
+
+```
+$ echo '[1, 2, 3]' | ffjson -i - -n stdin -f '[stdin]sum id'
+6
+```
+
+Likewise, output stream for the filter can be specified at the end:
+
+```
+$ echo '[1, 2, 3]' | ffjson -i - -n in -f '[in]sum id[out]' -o out
+6
+```
+
+Note that, if an output stream for a filter already exists, its contents
+will be overwritten by the output of the stream. If there are more filters
+working on the stream, they'll see the new contents as their inputs.
+
+It is possible to specify more than one input stream for a filter, thus
+allowing us to combine contents of multiple JSON streams together. In that
+case names of these streams 
+
+```
+$ echo '[1, 2, 3] | ffjson -i - -f '[0]sum id[1]' -f '[0][1]id[2]' -o 2
+{"0": [1, 2, 3], "1": 6}
+```
