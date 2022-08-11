@@ -66,7 +66,7 @@ setInputName name cfg = case currentInput cfg of
 
 addFilter :: String -> Config -> ExceptTraceT IO Config
 addFilter code cfg = do
-  filt <- liftTrace . Filter.parse $ pack code
+  filt <- liftTrace . Filter.parseFilter $ pack code
   return $ (finalizeInput cfg) { filters = filt : filters cfg }
 
 finalizeInput :: Config -> Config

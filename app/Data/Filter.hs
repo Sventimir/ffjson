@@ -2,9 +2,11 @@
 module Data.Filter (
   Filter,
   evaluate,
-  parse,
+  parseFilter,
   exprParser
 ) where
+
+import Control.Monad (void)
 
 import Data.Error.Trace (EitherTrace, ofEither)
 import qualified Data.JSON as JSON
@@ -12,11 +14,11 @@ import Data.JsonStream (Streamset, getStreams, addStream)
 import Data.Text (Text, pack)
 import Language.Eval (Eval, eval)
 
-import Parser.Core (consumeEverything)
+import Parser.Core (consumeEverything, lexeme, parse)
 import Parser.JSON (Parser, punctuation)
 import Parser.Language (exprParser)
 
-import Text.Megaparsec (between, option, many, some)
+import Text.Megaparsec (between, chunk, option, sepBy, some, try)
 import Text.Megaparsec.Char (alphaNumChar)
 import qualified Text.Megaparsec as Megaparsec
 
@@ -41,19 +43,21 @@ evaluate flt streams = do
   output <- eval (filterExpr flt) input
   return $ addStream (outputKey flt) output streams
 
-parse :: Text -> EitherTrace Filter
-parse = ofEither . Megaparsec.parse parser ""
+parseFilter :: Text -> EitherTrace Filter
+parseFilter = parse parser ""
 
 parser :: Monad m => Parser m Filter
 parser = consumeEverything $ do
-  inKey <- many key
+  inKey <- option [] . try $ do
+    k <- sepBy key $ punctuation '&'
+    () <- void . lexeme $ chunk ">>"
+    return k
   expr <- exprParser
-  outKey <- option "0" key
+  outKey <- option "0" $ do
+    () <- void . lexeme $ chunk ">>"
+    key
   return $ Filter inKey outKey expr
 
 key :: Monad m => Parser m Text
-key = between
-  (punctuation '[')
-  (punctuation ']')
-  (pack <$> some alphaNumChar)
+key = pack <$> lexeme (some alphaNumChar)
   

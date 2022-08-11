@@ -68,15 +68,14 @@ input to be a dictionary and will extract its property named "data":
 
 ```
 $ ffjson -i https://example.com/api -n json \
-         -f [json].data[processed] \
+         -f json >> .data >> processed \
          -o processed:/home/user/data.json
 ```
 
 Note that the filter does not alter the stream "json", but rather creates
 a new stream named "processed", which is then output to a file. However,
 names of input and output stream in filter definition can be omitted, in
-which case the input is stream `0` and the output stream shadows (i.e. has
-the same name as) the input stream.
+which case they both default to stream `"0"`.
 
 Also note that both `-i` and `-o` options can be omitted if they're equal to
 standard input and standard output respectively.
@@ -199,14 +198,14 @@ with (as is the case in all the examples above), it is assumed to consume the
 input `"0"`. The input stream can by specified explicitly like so:
 
 ```
-$ echo '[1, 2, 3]' | ffjson -i - -n stdin -f '[stdin]sum id'
+$ echo '[1, 2, 3]' | ffjson -i - -n stdin -f 'stdin >> sum id'
 6
 ```
 
 Likewise, output stream for the filter can be specified at the end:
 
 ```
-$ echo '[1, 2, 3]' | ffjson -i - -n in -f '[in]sum id[out]' -o out
+$ echo '[1, 2, 3]' | ffjson -i - -n in -f 'in >> sum id >> out' -o out
 6
 ```
 
@@ -216,9 +215,18 @@ working on the stream, they'll see the new contents as their inputs.
 
 It is possible to specify more than one input stream for a filter, thus
 allowing us to combine contents of multiple JSON streams together. In that
-case names of these streams 
+case names of these streams should be separated by `&` characters.
 
 ```
-$ echo '[1, 2, 3] | ffjson -i - -f '[0]sum id[1]' -f '[0][1]id[2]' -o 2
-{"0": [1, 2, 3], "1": 6}
+$ echo [1, 2, 3] | ffjson -f '0 >> {"a": sum id} >> 1' -f '0&1 >> id >> 2'  -o 2
+{
+  "0": [
+    1,
+    2,
+    3
+  ],
+  "1": {
+    "a": 6
+  }
+}
 ```
