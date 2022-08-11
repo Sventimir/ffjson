@@ -30,8 +30,8 @@ import qualified Text.Megaparsec.Char.Lexer as Lexer
 
 
 
-parseJSON :: JSON j => Text -> EitherTrace j
-parseJSON = parse (consumeEverything $ fix json) ""
+parseJSON :: JSON j => String -> Text -> EitherTrace j
+parseJSON = parse (consumeEverything $ fix json)
 
 string :: Monad m => Parser m Text
 string = lexeme $

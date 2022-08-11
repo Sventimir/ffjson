@@ -44,7 +44,7 @@ evaluate flt streams = do
   return $ addStream (outputKey flt) output streams
 
 parseFilter :: Text -> EitherTrace Filter
-parseFilter = parse parser ""
+parseFilter = parse parser "<command line>"
 
 parser :: Monad m => Parser m Filter
 parser = consumeEverything $ do

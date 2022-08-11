@@ -5,11 +5,11 @@ import Control.Monad (foldM, forM_)
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.IO.Class (MonadIO)
 
-import Data.Error.Trace (ExceptTraceT, runExceptTraceT, liftTrace)
+import Data.Error.Trace (ExceptTraceT, runExceptTraceT, liftTrace, traceError)
 import Data.Filter (Filter)
 import qualified Data.Filter as Filter
 import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyInputs,
-                   namedInputs, addInput, isEmptyInputs)
+                   namedInputs, addInput, isEmptyInputs, source)
 import Data.JSON (JSON)
 import Data.JSON.AST (toJSON)
 import Data.JSON.Repr (Repr, ReprConfig(..), reprS)
@@ -120,11 +120,11 @@ main = do
 
 readJson :: Streamset -> (Text, Input) -> ExceptTraceT IO Streamset
 readJson streams (k, input) = do
-  v <- loadInput input >>= parseJson
+  v <- loadInput input >>= parseJson (source input)
   return $ addStream k (toJSON v) streams
 
-parseJson :: (JSON j, MonadIO m) => Text -> ExceptTraceT m j
-parseJson = liftTrace . parseJSON
+parseJson :: (JSON j, MonadIO m) => String -> Text -> ExceptTraceT m j
+parseJson src = liftTrace . parseJSON src
 
 outputJson :: ReprConfig -> Streamset -> Output -> IO ()
 outputJson cfg streamset (Output key filename) =

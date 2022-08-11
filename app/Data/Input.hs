@@ -3,6 +3,7 @@ module Data.Input (
   Input(..),
   InputError(..),
   Inputs(Inputs),
+  source,
   emptyInputs,
   isEmptyInputs,
   namedInputs,
@@ -41,6 +42,10 @@ instance Exception InputError where
 
 data Input = FileInput String | UrlInput HTTP.Request
   deriving Show
+
+source :: Input -> String
+source (FileInput fname) = fname
+source (UrlInput req) = show req
 
 parseInput :: Monad m => String -> ExceptTraceT m Input
 parseInput input = fmap UrlInput (HTTP.parseRequest input)
