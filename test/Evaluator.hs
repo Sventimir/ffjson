@@ -13,7 +13,7 @@ import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..))
 import Data.Text (Text)
 
 import Language.Eval
-import Parser.Core (parse, consumeEverything)
+import Parser.Core (ParseError(..), parse, consumeEverything)
 import qualified Parser.JSON as JsonParser
 import Parser.Language (exprParser)
 
@@ -35,7 +35,7 @@ evalTests = do
       ".[0]" `appliedTo` "[1, 2, 3]" `shouldReturn` num 1
     it "Get from array by non-exitent index." $
       ".[0]" `appliedTo` "[]" `shouldReturn` null
-    it "Array getters compoe." $
+    it "Array getters compose." $
       ".[1].[0]" `appliedTo` "[0, [1, 2, 3], {}]" `shouldReturn` num 1
     it "Get from non-array fails" $
       ".[0]" `appliedTo` "{}" `shouldThrow` notAnArray (obj [])
@@ -64,6 +64,8 @@ evalTests = do
     it "Parentheses can be nested" $
       "(.x.a) | ((keys id) | (.[0]))" `appliedTo` "{\"x\": {\"a\": {\"z\": 123}}}"
         `shouldReturn` str "z"
+    it "A failure inside parentheses also causes an error" $
+      "(keys)" `appliedTo` "{}" `shouldThrow` parseError
   describe "Test syntax in conjunction with standard JSON." $ do
     it "Complex expressions in dictionary." $
       "{\"a\": keys .x, \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
@@ -93,6 +95,8 @@ evalTests = do
   describe "Test order of arithmetic operations" $ do
     it "By default operations are evaluated in the order of appearance." $
       "1 + 2 * 3 + 4" `appliedTo` "[]" `shouldReturn` num 11
+    it "Operators of higher precedence bind stronger than those of lower precedence" $
+      ".a * .b + .c * .d" `appliedTo` "{\"a\": 2, \"b\": 3, \"c\": 5, \"d\": 7}" `shouldReturn` num 41
     it "Parentheses can modify operation precedence." $
       "(1 + 2) * (3 + 4)" `appliedTo` "{}" `shouldReturn` num 21
     it "Function call binds more strongly than operators." $
@@ -139,7 +143,7 @@ evalTests = do
       "size .[0]" `appliedTo` "[\"JSON\"]" `shouldReturn` num 4
   describe "All the input must always be consumed." $ do
     it "Trailing characters raise an error." $ do
-      ".[0] + .[1] .[2]" `appliedTo` "[1, 2, 3]" `shouldThrow` anyException
+      ".[0] + .[1] .[2]" `appliedTo` "[1, 2, 3]" `shouldThrow` parseError
   describe "Test union of objects." $ do
     it "Union with empty object is an identity." $
       "union id {}" `appliedTo` "{\"a\": 12}" `shouldReturn` obj [("a", num 12)]
@@ -148,8 +152,8 @@ evalTests = do
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
-  json <- liftTrace $ JsonParser.parseJSON jsonTxt
-  expr <- liftTrace $ parse (consumeEverything exprParser) "" exprTxt
+  json <- liftTrace $ JsonParser.parseJSON "test JSON" jsonTxt
+  expr <- liftTrace $ parse (consumeEverything exprParser) "test expression" exprTxt
   liftTrace $ eval expr json
 
 instance (Monad m, JSON a) => JSON (ExceptTraceT m a) where
@@ -194,4 +198,9 @@ notANumber _ _ = False
 zeroDivision :: Selector [SomeException]
 zeroDivision es = case fromException $ last es of
   Just ZeroDivision -> True
+  _ -> False
+
+parseError :: Selector [SomeException]
+parseError [e] = case fromException e of
+  Just (ParseError _) -> True
   _ -> False

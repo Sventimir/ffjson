@@ -1,6 +1,6 @@
 module Parser.Core (
   Parser,
-  ParseError,
+  ParseError(..),
   parse,
   space,
   lexeme,

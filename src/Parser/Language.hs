@@ -6,7 +6,6 @@ module Parser.Language (
 import Control.Applicative (Alternative(..))
 
 import Data.JSON (JSON(..))
-import Data.Function (fix)
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -24,14 +23,12 @@ import qualified Text.Megaparsec.Char.Lexer as Lexer
 
 
 exprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
-exprParser = operators simpleExprParser
-
-simpleExprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
-simpleExprParser =
-  Megaparsec.try (JsonParser.json exprParser)
-  <|> Megaparsec.try getter
-  <|> Megaparsec.try (functions simpleExprParser)
-  <|> parentheses exprParser
+exprParser = operators (functions immediateExpr <|> immediateExpr)
+  where
+  immediateExpr = constant "id" Functions.identity
+                <|> JsonParser.json exprParser
+                <|> getter
+                <|> parentheses exprParser
 
 
 getter :: (Monad m, Functions j, Syntax j) => Parser m j
@@ -87,7 +84,6 @@ operator subexpr symbol f = do
 
 functions :: (Monad m, Functions j) => Parser m j -> Parser m j
 functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
-    constant "id" Functions.identity,
     function subexpr "keys" Functions.keys,
     function subexpr "size" Functions.size,
     function subexpr "map" Functions.jmap,
@@ -107,7 +103,7 @@ functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
   ]
 
 operators :: (Monad m, Functions j) => Parser m j -> Parser m j
-operators subexpr = foldr alt subexpr [
+operators subexpr = foldr combine subexpr [
     ("|", Functions.compose),
     ("?", Functions.optMap),
     ("=", Functions.equal),
@@ -122,7 +118,7 @@ operators subexpr = foldr alt subexpr [
     ("<>", Functions.concat)
   ]
   where
-  alt (symbol, f) acc = Megaparsec.try (operator acc symbol f) <|> acc
+  combine (symbol, f) acc = Megaparsec.try (operator acc symbol f)
 
 parentheses :: (Monad m, Syntax j) => Parser m j -> Parser m j
 parentheses = Megaparsec.between (punctuation '(') (punctuation ')')
