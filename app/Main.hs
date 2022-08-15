@@ -5,7 +5,7 @@ import Control.Monad (foldM, forM_)
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.IO.Class (MonadIO)
 
-import Data.Error.Trace (ExceptTraceT, runExceptTraceT, liftTrace, traceError)
+import Data.Error.Trace (ExceptTraceT, runExceptTraceT, liftTrace, traceErrorT)
 import Data.Filter (Filter)
 import qualified Data.Filter as Filter
 import Data.Input (Input(..), Inputs, InputError, parseInput, loadInput, emptyInputs,
@@ -31,6 +31,8 @@ data FFJsonError = UnexpectedPositional String
                  | NoInput
                  | AlreadyNamed String
                  | ParseError (ParseErrorBundle Text ParseError)
+                 | Failure String
+                 | SourceCode Text
                  deriving Show
 
 instance Exception FFJsonError
@@ -112,16 +114,17 @@ main = do
   result <- runExceptTraceT $ do
     cfg <- cliParser defaults
     jsons <- foldM readJson emptyStreamset . namedInputs $ inputs cfg
-    jsons' <- foldM (\j f -> liftTrace $ Filter.evaluate f j) jsons $ filters cfg
+    jsons' <- foldM evalFilter jsons $ filters cfg
     return (cfg, jsons')
   case result of
     Right (cfg, json) -> forM_ (outputs cfg) (outputJson (repr cfg) json)
     Left err -> print err
 
 readJson :: Streamset -> (Text, Input) -> ExceptTraceT IO Streamset
-readJson streams (k, input) = do
-  v <- loadInput input >>= parseJson (source input)
-  return $ addStream k (toJSON v) streams
+readJson streams (k, input) =
+    traceErrorT (Failure $ "Could not parse JSON from: " ++ source input) $ do
+      v <- loadInput input >>= parseJson (source input)
+      return $ addStream k (toJSON v) streams
 
 parseJson :: (JSON j, MonadIO m) => String -> Text -> ExceptTraceT m j
 parseJson src = liftTrace . parseJSON src
@@ -134,3 +137,8 @@ outputJson cfg streamset (Output key filename) =
 
 write :: ReprConfig -> Repr Text -> Handle -> IO ()
 write cfg json fd = Text.hPutStrLn fd (reprS json cfg id)
+
+evalFilter :: Streamset -> Filter -> ExceptTraceT IO Streamset
+evalFilter j f = traceErrorT
+                   (Failure "Filter execution failed!")
+                   (liftTrace $ Filter.evaluate f j)
