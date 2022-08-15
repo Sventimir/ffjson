@@ -23,7 +23,10 @@ import qualified Text.Megaparsec.Char.Lexer as Lexer
 
 
 exprParser :: (Monad m, JSON j, Syntax j, Functions j) => Parser m j
-exprParser = operators (functions immediateExpr <|> immediateExpr)
+exprParser = operators (
+  Megaparsec.try (conditional exprParser)
+  <|> functions immediateExpr
+  <|> immediateExpr)
   where
   immediateExpr = constant "id" Functions.identity
                 <|> JsonParser.json exprParser
@@ -60,6 +63,18 @@ getArray = do
   i <- Lexer.signed space Lexer.decimal
   _ <- MegaparsecChar.char ']'
   return $ Syntax.index i
+
+conditional :: (Monad m, Syntax j) => Parser m j -> Parser m j
+conditional subexpr = do
+  _ <- keyword "if"
+  cond <- subexpr
+  _ <- keyword "then"
+  ifSo <- subexpr
+  _ <- keyword "else"
+  ifNot <- subexpr
+  return $ Syntax.ifThenElse cond ifSo ifNot
+  where
+  keyword = lexeme . MegaparsecChar.string
 
 constant :: (Monad m, Functions j) => Text -> j -> Parser m j
 constant name c = lexeme (Megaparsec.chunk name) >> return c

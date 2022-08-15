@@ -2,7 +2,8 @@
 module Language.Syntax (
   Syntax(..),
   getAst,
-  indexAst
+  indexAst,
+  ifThenElseAst
 ) where
 
 import Prelude hiding (null)
@@ -10,18 +11,17 @@ import Prelude hiding (null)
 import Control.Monad.Catch (MonadThrow(..))
 import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
-import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), toJSON)
+import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), toJSON, expectBool)
 import Data.JSON.Repr (Repr(..), toText)
 import Data.Text (Text)
-
-import Parser.JSON (Parser, punctuation)
-import qualified Text.Megaparsec as Megaparsec
 
 
 class JSON j => Syntax j where
   get :: Text -> j
   index :: Int -> j
+  ifThenElse :: j -> j -> j -> j
 
+type JsonF = JsonAst -> EitherTrace JsonAst
 
 getAst :: Text -> JsonAst -> EitherTrace JsonAst
 getAst key (JObject kvs) = return . maybe null toJSON $ find key kvs
@@ -44,7 +44,14 @@ find key ((k, v) : more)
   | k == key = Just v
   | otherwise = find key more
 
+ifThenElseAst :: JsonF -> JsonF -> JsonF -> JsonF
+ifThenElseAst cond ifSo ifNot j = do
+  c <- cond j >>= expectBool
+  if c then ifSo j else ifNot j
+
 
 instance Syntax (Repr r) where
   get key = Repr $ return (".\"" <> key <> "\"")
   index i = Repr $ return (".[" <> toText i <> "]")
+  ifThenElse (Repr cond) (Repr ifSo) (Repr ifNot) =
+    Repr $ "if " <> cond <> " then " <> ifSo <> " else " <> ifNot

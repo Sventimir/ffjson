@@ -149,6 +149,15 @@ evalTests = do
       "union id {}" `appliedTo` "{\"a\": 12}" `shouldReturn` obj [("a", num 12)]
     it "Union adds properties of the right object to the left one." $
       "union {\"a\": true} id" `appliedTo` "{\"b\": false}" `shouldReturn` obj [("a", bool True), ("b", bool False)]
+  describe "Test if-then-else branching structure." $ do
+    it "Non-boolean condition causes an error." $
+      "if .a then .b else .c" `appliedTo` "{\"a\": 1}" `shouldThrow` notABoolean (num 1)
+    it "If condition evaluates to true, the first sub-expression is returned." $
+      "if .a then .b else .c" `appliedTo` "{\"a\": true, \"b\": 1}" `shouldReturn` num 1
+    it "If condition evaluates to false, the second sub-expression is returned." $
+      "if .a then .b else .c" `appliedTo` "{\"a\": false, \"c\": 2}" `shouldReturn` num 2
+    it "Operators and functions can be used at will inside conditionals." $
+      "if size (keys .a) > 0 then .b + 1 else .b - 1" `appliedTo` "{\"a\": {}, \"b\": 3}" `shouldReturn` num 2
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
@@ -194,6 +203,12 @@ notANumber expected [e] = case fromException e of
   Just (NotANumber json) -> expected == json
   _ -> False
 notANumber _ _ = False
+
+notABoolean :: JsonAst -> Selector [SomeException]
+notABoolean expected [e] = case fromException e of
+  Just (NotABoolean json) -> expected == json
+  _ -> False
+notABoolean _ _ = False
 
 zeroDivision :: Selector [SomeException]
 zeroDivision es = case fromException $ last es of

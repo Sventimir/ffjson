@@ -12,7 +12,7 @@ import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst)
 import Language.Functions (Functions(..))
 import qualified Language.Functions as Fun
-import Language.Syntax (Syntax(..), getAst, indexAst)
+import Language.Syntax (Syntax(..), getAst, indexAst, ifThenElseAst)
 
 
 newtype Eval = Eval (JsonAst -> EitherTrace JsonAst)
@@ -35,6 +35,8 @@ instance JSON Eval where
 instance Syntax Eval where
   get key = Eval $ getAst key
   index idx = Eval $ indexAst idx
+  ifThenElse (Eval cond) (Eval ifSo) (Eval ifNot) =
+    Eval $ ifThenElseAst cond ifSo ifNot
 
 instance Functions Eval where
   identity = Eval return

@@ -32,7 +32,6 @@ data FFJsonError = UnexpectedPositional String
                  | AlreadyNamed String
                  | ParseError (ParseErrorBundle Text ParseError)
                  | Failure String
-                 | SourceCode Text
                  deriving Show
 
 instance Exception FFJsonError
@@ -112,7 +111,7 @@ instance CliArgs (ExceptTraceT IO) Config where
 main :: IO ()
 main = do
   result <- runExceptTraceT $ do
-    cfg <- cliParser defaults
+    cfg <- traceErrorT (Failure "Wrong command line arguments") $ cliParser defaults
     jsons <- foldM readJson emptyStreamset . namedInputs $ inputs cfg
     jsons' <- foldM evalFilter jsons $ filters cfg
     return (cfg, jsons')
