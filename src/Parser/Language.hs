@@ -99,6 +99,8 @@ functions subexpr = foldl1 (<|>) $ map Megaparsec.try [
     function2 subexpr "mult" Functions.mult,
     function2 subexpr "union" Functions.union,
     function2 subexpr "concat" Functions.concat,
+    function2 subexpr "and" Functions.and,
+    function2 subexpr "or" Functions.or,
     function2 subexpr "compose" Functions.compose
   ]
 
@@ -106,6 +108,8 @@ operators :: (Monad m, Functions j) => Parser m j -> Parser m j
 operators subexpr = foldr combine subexpr [
     ("|", Functions.compose),
     ("?", Functions.optMap),
+    ("&&", Functions.and),
+    ("||", Functions.or),
     ("=", Functions.equal),
     ("<", Functions.lt),
     ("<=", Functions.lte),
