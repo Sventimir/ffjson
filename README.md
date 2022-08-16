@@ -99,7 +99,7 @@ a valid filter expression, which transforms any input into that constant
 JSON. For instance:
 
 ```
-$ echo '{}' | ffjson -r -f '{"a" : "123}'
+$ echo '{}' | ffjson -r -f '{"a" : 123}'
 {"a": 123}
 ```
 
