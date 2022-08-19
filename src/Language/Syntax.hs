@@ -29,7 +29,8 @@ getAst _ json = throwM $ NotAnObject json
 
 indexAst :: Int -> JsonAst -> EitherTrace JsonAst
 indexAst idx (JArray js)
-  | idx < 0 = throwM $ NegativeIndex idx
+  | idx < 0 = let i = length js + idx in
+                return $ if i > 0 then getIndex i js else null
   | otherwise = return $ getIndex idx js
   where
   getIndex :: Int -> [JsonAst] -> JsonAst

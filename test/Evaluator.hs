@@ -39,8 +39,8 @@ evalTests = do
       ".[1].[0]" `appliedTo` "[0, [1, 2, 3], {}]" `shouldReturn` num 1
     it "Get from non-array fails" $
       ".[0]" `appliedTo` "{}" `shouldThrow` notAnArray (obj [])
-    it "Get from array by negative index fails." $
-      ".[-1]" `appliedTo` "[1, 2, 3]" `shouldThrow` negativeIndex (-1)
+    it "Get from array by negative index counts elements from the end of the array." $
+      ".[-1]" `appliedTo` "[1, 2, 3]" `shouldReturn` num 3
   describe "Array and objects getters compose together." $
     it "Compose array and object getter." $
       ".a.[0].b" `appliedTo` "{\"a\": [{\"b\": true}, 1], \"z\": null}" `shouldReturn` bool True

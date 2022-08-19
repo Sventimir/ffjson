@@ -126,6 +126,14 @@ $ echo '[1, 2, 3]' | ffjson -r -f '.[1]'
 2
 ```
 
+Negative indices may also be used, in which case items are counted from the
+end of the array to the right. For instance:
+
+```
+$ echo '[1, 2, 3]' | ffjson -f '.[-1]'
+3
+```
+
 As one might expect, expressions can be nested inside JSON, for instance:
 
 ```
