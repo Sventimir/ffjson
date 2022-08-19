@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Language.Syntax (
   Syntax(..),
+  ArraySlice(..),
   getAst,
   indexAst,
+  sliceAst,
   ifThenElseAst
 ) where
 
@@ -13,12 +15,20 @@ import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), toJSON, expectBool)
 import Data.JSON.Repr (Repr(..), toText)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 
+
+data ArraySlice = ArraySlice {
+  start :: Maybe Int,
+  end :: Maybe Int,
+  step :: Maybe Int
+}
 
 class JSON j => Syntax j where
   get :: Text -> j
   index :: Int -> j
+  slice :: ArraySlice -> j
   ifThenElse :: j -> j -> j -> j
 
 type JsonF = JsonAst -> EitherTrace JsonAst
@@ -39,6 +49,23 @@ indexAst idx (JArray js)
   getIndex i (_:xs) = getIndex (pred i) xs
 indexAst _ json = throwM $ NotAnArray json
 
+sliceAst :: ArraySlice -> JsonF
+sliceAst slc (JArray js) = do
+  let arr = drop (fromMaybe 0 $ getIdx start) $ maybe id take (getIdx end) js
+  let s = fromMaybe 1 $ step slc
+  case compare s 0 of
+    GT -> return . JArray $ takeSlice (s - 1) arr
+    EQ -> throwM SliceStepCannotBeZero
+    LT -> return . JArray $ takeSlice (abs s - 1) (reverse arr)
+  where
+  len = length js
+  getIdx getter = (\i -> if i < 0 then len + i else i) <$> getter slc
+sliceAst _ json = throwM $ NotAnArray json
+
+takeSlice :: Int -> [a] -> [a]
+takeSlice _ [] = []
+takeSlice s (x : xs) = x : takeSlice s (drop s xs)
+
 find :: Eq a => a -> [(a, b)] -> Maybe b
 find _ [] = Nothing
 find key ((k, v) : more)
@@ -54,5 +81,8 @@ ifThenElseAst cond ifSo ifNot j = do
 instance Syntax (Repr r) where
   get key = Repr $ return (".\"" <> key <> "\"")
   index i = Repr $ return (".[" <> toText i <> "]")
+  slice slc = Repr $ return (".[" <> showSlc start <> ":" <> showSlc end <> ":" <> showSlc step <> "]")
+    where
+    showSlc getSlice = maybe "" toText $ getSlice slc
   ifThenElse (Repr cond) (Repr ifSo) (Repr ifNot) =
     Repr $ "if " <> cond <> " then " <> ifSo <> " else " <> ifNot

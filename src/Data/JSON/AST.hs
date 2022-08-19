@@ -66,12 +66,12 @@ instance Show TypeError where
 
 instance Exception TypeError where
 
-data ValueError = NegativeIndex Int
+data ValueError = SliceStepCannotBeZero
                 | ZeroDivision
                 | Incomparable JsonAst (Maybe JsonAst)
 
 instance Show ValueError where
-  show (NegativeIndex i) = "Negative array index: " ++ show i ++ "!"
+  show SliceStepCannotBeZero = "In array slice formula, the step cannot be 0!"
   show ZeroDivision = "Cannot divide by zero!"
   show (Incomparable j Nothing) = "Value '" ++ show j ++ "' is incmprarable!"
   show (Incomparable j (Just k)) = "Values '" ++ show j ++ "' and '"

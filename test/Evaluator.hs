@@ -158,6 +158,29 @@ evalTests = do
       "if .a then .b else .c" `appliedTo` "{\"a\": false, \"c\": 2}" `shouldReturn` num 2
     it "Operators and functions can be used at will inside conditionals." $
       "if size (keys .a) > 0 then .b + 1 else .b - 1" `appliedTo` "{\"a\": {}, \"b\": 3}" `shouldReturn` num 2
+  describe "Test array slicing." $ do
+    it "When only a colon is present, whole list is taken." $
+      ".[:]" `appliedTo` "[0, 1, 2, 3]" `shouldReturn` array [num 0, num 1, num 2, num 3]
+    it "Number before colon is the first index to take." $
+      ".[1:]" `appliedTo` "[0, 1, 2, 3]" `shouldReturn` array [num 1, num 2, num 3]
+    it "Number following the colon is the first index to drop." $
+      ".[:2]" `appliedTo` "[0, 1, 2, 3]" `shouldReturn` array [num 0, num 1]
+    it "Both first and last index may be specified." $
+      ".[1:3]" `appliedTo` "[0, 1, 2, 3]" `shouldReturn` array [num 1, num 2]
+    it "After second colon, step may be specified" $
+      ".[::2]" `appliedTo` "[0, 1, 2, 3, 4]" `shouldReturn` array [num 0, num 2, num 4]
+    it "When first and step are specified, go to the end of the array." $
+      ".[2::3]" `appliedTo` "[0, 1, 2, 3, 4, 5]" `shouldReturn` array [num 2, num 5]
+    it "When last and step are specified, start from the beginning." $
+      ".[:3:2]" `appliedTo` "[0, 1, 2, 3, 4, 5]" `shouldReturn` array [num 0, num 2]
+    it "When all three elements are specified, take the slice with step." $
+      ".[1:4:2]" `appliedTo` "[0, 1, 2, 3, 4, 5]" `shouldReturn` array [num 1, num 3]
+    it "Negative indices are counted from the end of the array." $
+      ".[-3:-1]" `appliedTo` "[0, 1, 2, 3, 4, 5]" `shouldReturn` array [num 3, num 4]
+    it "When step is negative, the array should be traversed backwards." $ do
+      ".[::-1]" `appliedTo` "[0, 1, 2]" `shouldReturn` array [num 2, num 1, num 0]
+    it "A convoluted example." $
+      ".[2:-3:-2]" `appliedTo` "[0, 1, 2, 3, 4, 5, 6, 7]" `shouldReturn` array [num 4, num 2]
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
@@ -191,12 +214,6 @@ notAnArray expected [e] = case fromException e of
   Just _ -> False
   Nothing -> False
 notAnArray _ _ = False
-
-negativeIndex :: Int -> Selector [SomeException]
-negativeIndex expected [e] = case fromException e of
-  Just (NegativeIndex i) -> expected == i
-  _ -> False
-negativeIndex _ _ = False
 
 notANumber :: JsonAst -> Selector [SomeException]
 notANumber expected [e] = case fromException e of

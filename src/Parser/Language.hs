@@ -6,6 +6,7 @@ module Parser.Language (
 import Control.Applicative (Alternative(..))
 
 import Data.JSON (JSON(..))
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -56,14 +57,29 @@ quotedGetObject = do
   key <- Megaparsec.between (MegaparsecChar.char '"') (punctuation '"')
          . many $ Megaparsec.anySingleBut '"'
   return . Syntax.get $ Text.pack key
-  
+
 getArray :: (Monad m, Syntax j) => Parser m j
 getArray = do
   _ <- MegaparsecChar.string ".["
-  i <- Lexer.signed space Lexer.decimal
-  _ <- MegaparsecChar.char ']'
-  return $ Syntax.index i
+  idx <- Megaparsec.optional index
+  ret <- optionally (idxOrSlice idx) $ do
+    _ <- char ':'
+    optionally (arrSlice idx Nothing Nothing) $ do
+      to <- Megaparsec.optional index
+      optionally (arrSlice idx to Nothing) $ do
+        _ <- char ':'
+        arrSlice idx to <$> Megaparsec.optional index
+  _ <- char ']'
+  return ret
+  where
+  idxOrSlice Nothing = arrSlice Nothing Nothing Nothing
+  idxOrSlice (Just i) = Syntax.index i
+  optionally dft p = fromMaybe dft <$> Megaparsec.optional p
+  char = MegaparsecChar.char
+  index = Lexer.signed space Lexer.decimal
+  arrSlice f t s = Syntax.slice $ Syntax.ArraySlice f t s
 
+  
 conditional :: (Monad m, Syntax j) => Parser m j -> Parser m j
 conditional subexpr = do
   _ <- keyword "if"
