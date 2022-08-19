@@ -17,6 +17,7 @@ module Language.Functions (
   jand,
   jor,
   jnot,
+  jIsNull,
   jtry,
   structSize,
   arrayReduce,
@@ -63,6 +64,7 @@ class Functions j where
   or :: j -> j -> j
   and :: j -> j -> j
   not :: j -> j
+  isNull :: j -> j
   try :: j -> j
 
   
@@ -159,6 +161,10 @@ jand = unitypedBinop expectBool (&&) bool
 jor :: JsonF2
 jor = unitypedBinop expectBool (||) bool
 
+jIsNull :: JsonF
+jIsNull JNull = return $ bool True
+jIsNull _ = return $ bool False
+
 jtry :: JsonF -> JsonF
 jtry f json = case runEitherTrace $ f json of
   Right j -> return j
@@ -200,4 +206,5 @@ instance Functions (Repr j) where
   and (Repr l) (Repr r) = Repr $ l <> " && " <> r
   or (Repr l) (Repr r) = Repr $ l <> " || " <> r
   not (Repr j) = Repr $ "not" <> j
+  isNull (Repr j) = Repr $ "isNull (" <> j <> ")"
   try (Repr j) = Repr $ "try" <> j
