@@ -21,9 +21,9 @@ import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Parser.Core (Parser, ParseError, parse, lexeme, space, punctuation, consumeEverything)
+import Parser.Core (Parser, parse, lexeme, space, punctuation, consumeEverything)
 
-import Text.Megaparsec (between, anySingleBut, chunk, sepBy, try)
+import Text.Megaparsec (between, chunk, manyTill, sepBy, satisfy, chunk, try)
 import Text.Megaparsec.Char (char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 
@@ -33,8 +33,9 @@ parseJSON :: JSON j => String -> Text -> EitherTrace j
 parseJSON = parse (consumeEverything $ fix json)
 
 string :: Monad m => Parser m Text
-string = lexeme $
-         fmap Text.pack $ quoted . many $ anySingleBut '"'
+string = lexeme $ Text.pack <$> (qmark >> manyTill Lexer.charLiteral qmark)
+  where
+  qmark = char '"'
 
 number :: (JSON j, Monad m) => Parser m j
 number = lexeme . fmap num $ Lexer.signed space (try float <|> decimal)
@@ -72,6 +73,3 @@ object self = lexeme $ do
 
 json :: (JSON j, Monad m) => Parser m j -> Parser m j
 json self = fmap str string <|> number <|> constants <|> arr self <|> object self
-
-quoted :: Monad m => Parser m a -> Parser m a
-quoted = between (char '"') (char '"')

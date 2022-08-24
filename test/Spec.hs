@@ -8,6 +8,7 @@ import qualified Data.Text as Text
 
 import Data.Error.Trace (runEitherTrace)
 import Data.JSON
+import Data.JSON.AST
 import Data.JSON.Repr
 import Data.Hash
 import Parser.JSON
@@ -25,10 +26,11 @@ main = hspec $ do
   describe "parse-unparse-identity" $ do
     it "parsing after serialisation is an identity" $
       property $ \(Wrapson j) ->
-                   let (repr, rollingHash) = j in
-                   case runEitherTrace . parseJSON "arbitrary" $ reprS repr defaultReprConfig id of
+                   let (repr, rollingHash) = j :: (Repr Text, RollingHash)
+                       j' = reprS repr defaultReprConfig id in
+                   case runEitherTrace $ parseJSON "arbitrary" j' of
                      Left _ -> False
-                     Right j' -> hash rollingHash == hash j'
+                     Right parsed -> hash rollingHash == hash parsed
 
 
 data Wrapson a where

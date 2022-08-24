@@ -86,8 +86,11 @@ enclose hd body tl =
     body <>
     (unindent >>= \i -> return $ i `Text.snoc`tl)
 
+escape :: Text -> Text
+escape = Text.replace "\"" "\\\"" . Text.replace "\\" "\\\\"
+
 instance JSON (Repr r) where
-  str s = Repr $ "\"" <> return s <> "\""
+  str s = Repr $ "\"" <> return (escape s) <> "\""
   num n = Repr $ gets (($ n) . printNum)
   bool True = Repr "true"
   bool False = Repr "false"

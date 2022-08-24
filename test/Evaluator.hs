@@ -20,6 +20,14 @@ import Parser.Language (exprParser)
 
 evalTests :: Spec
 evalTests = do
+  describe "Test escaping quotation marks in strings." $ do
+    it "A quotation mark signals an end of a string." $
+      "\"some \"string\"\"" `appliedTo` "id" `shouldThrow` anyException
+    it "A properly escaped quotation mark does not end a string." $
+      "concat id \" found\\\"\"" `appliedTo` "\"\\\"not\""
+        `shouldReturn` str "\"not found\""
+    it "Backslash should also be escaped." $
+      "id" `appliedTo` "\"\\\\\"" `shouldReturn` str "\\"
   describe "Test simple object getter." $ do
     it "Get existing key." $
       ".a" `appliedTo` "{\"a\": 1}" `shouldReturn` num 1
