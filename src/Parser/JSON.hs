@@ -14,7 +14,7 @@ module Parser.JSON (
 ) where
 
 import Prelude hiding (null)
-import Control.Applicative ((<|>), many)
+import Control.Applicative ((<|>))
 import Data.Error.Trace (EitherTrace)
 import Data.Function (fix)
 import Data.JSON (JSON(..))
@@ -23,7 +23,7 @@ import qualified Data.Text as Text
 
 import Parser.Core (Parser, parse, lexeme, space, punctuation, consumeEverything)
 
-import Text.Megaparsec (between, chunk, manyTill, sepBy, satisfy, chunk, try)
+import Text.Megaparsec (between, chunk, manyTill, sepBy, chunk, try)
 import Text.Megaparsec.Char (char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 
