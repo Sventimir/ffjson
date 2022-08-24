@@ -26,7 +26,7 @@ import Data.Text.Encoding (decodeUtf8)
 import qualified Network.HTTP.Simple as HTTP
 import qualified Network.HTTP.Types as HTTP.Types
 
-import Parser.JSON (ParseError)
+import Parser.Core (ParseError)
 
 import Text.Megaparsec (ParseErrorBundle)
 

@@ -18,7 +18,8 @@ import Data.Output (Output(..), parseOutput)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as Text
 
-import Parser.JSON (parseJSON, ParseError)
+import Parser.Core (ParseError)
+import Parser.JSON (parseJSON)
 import Parser.CLI (CliArgs(..), FlagSpec(..), Or(..), Consume(..), cliParser)
 
 import System.IO (IOMode(..), Handle, withFile)

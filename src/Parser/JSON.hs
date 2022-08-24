@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RankNTypes, ScopedTypeVariables #-}
 module Parser.JSON (
   Parser,
-  ParseError(..),
   parseJSON,
   lexeme,
   string,
