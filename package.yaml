@@ -1,10 +1,12 @@
 name:                ffjson
-version:             0.1.0.0
+version:             1.0.0.0
 github:              "Sventimir/ffjson"
 license:             BSD3
 author:              "Sventimir"
 maintainer:          "svantimir@gmail.com"
 copyright:           "2022 Sventimir"
+category:            "command-line tools"
+synopsis:            "A command-line tool for manipulating JSON data."
 
 extra-source-files:
 - README.md
@@ -12,7 +14,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Command-line JSON filter and trans tool.
+description:         A command-line tool for viewing, filtering and transforming JSON data. See README for more details.
 
 dependencies:
 - base >= 4.7 && < 5
@@ -27,7 +29,7 @@ library:
   source-dirs: src
 
 executables:
-  ffjson-exe:
+  ffjson:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
