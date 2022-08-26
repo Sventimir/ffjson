@@ -1,9 +1,29 @@
 {-# LANGUAGE FlexibleInstances #-}
+{- |
+Module      : Data.Error.Trace
+Description : Provides detailed traces to error messages.
+Copyright   : Sventimir 2022
+
+In general, when raising an error in a specialised, small
+function, which is being used pervasively around the codebase,
+the error message usually lacks information on where the error
+happened or the bigger context in which the failure occurred.
+
+This module solves this issue with a wrapper around Either,
+whose left type parameter is fixed to a list of exceptions.
+These exceptions can contain arbitrary information, helping
+localise and describe the error. Typically at each call site
+one exception may be added to the trace in order to help
+better describe grander context in which the failure took place.
+
+In order for this to work, programmer must take care to wrap
+key function calls in @traceError@, which adds specified exceptions
+to the trace.
+-}
 module Data.Error.Trace (
   Trace,
   EitherTrace,
   ExceptTraceT,
-  singleError,
   runEitherTrace,
   eitherJustTrace,
   ofEither,
@@ -12,8 +32,7 @@ module Data.Error.Trace (
   traceError,
   traceErrorT,
   runExceptTraceT,
-  runToIO,
-  (!:)
+  runToIO
 ) where
 
 import Control.Applicative (Alternative(..))
@@ -26,6 +45,8 @@ import Data.Coerce (coerce)
 import Data.List (intercalate)
 
 
+{- | An exception trace. Currently @Show@ instance can be used to display the
+     error details to the user. -}
 newtype Trace = Trace [SomeException]
 
 instance Semigroup Trace where
@@ -51,6 +72,15 @@ e !: (Trace es) = Trace (SomeException e : es)
 singleError :: Exception e => e -> Trace
 singleError e = Trace [SomeException e]
 
+{- | [EitherTrace a] represents either a result of successful computation
+     returning an @a@ or an error described by a trace. The trace is a list
+     of increasingly specialised exceptions, describing the failure with
+     increasing precision. Topmost error message is usually vague and only
+     describes the general part of the system where error occurred, while
+     further messages narrow the scope of the error and provide more detail
+     on what went wrong. This trace needs to be built manually by the programmer
+     by annotating computations with possible error details.
+-}
 newtype EitherTrace a = EitherTrace (Either Trace a)
   deriving (Show)
 
@@ -68,22 +98,38 @@ instance Monad EitherTrace where
 instance MonadThrow EitherTrace where
   throwM e = EitherTrace . Left $ singleError e
 
+{- | Lifts a regular either into the @EitherTrace@ context, where a potential
+     error is transformed into a trace consisting of just a single exception.
+-}
 ofEither :: Exception e => Either e a -> EitherTrace a
 ofEither (Right a) = EitherTrace $ Right a
 ofEither (Left e) = EitherTrace . Left $ singleError e
 
+{- | Takes a @Maybe a@ and an exception, and either returns an @a@
+     or raises the provided exception.
+-}
 eitherJustTrace :: Exception e => e -> Maybe a -> EitherTrace a
 eitherJustTrace exn Nothing = throwM exn
 eitherJustTrace _ (Just a) = return a
 
+{- | @traceError e m@ evaluates @m@ and if it succeeds, returns its result.
+     If @m@ fails, however, @e@ is added to the exception trace.
+-}
 traceError :: Exception e => e -> EitherTrace a -> EitherTrace a
 traceError e (EitherTrace (Left (Trace es))) = EitherTrace . Left $ Trace (SomeException e : es)
 traceError _ right = right
 
+{- | Escapes the @EitherTrace a@ monad and returns either a list of
+     exceptions, describing the failure or a result of successful
+     computation of type @a@.
+-}
 runEitherTrace :: EitherTrace a -> Either [SomeException] a
 runEitherTrace = coerce
 
 
+{- | [ExceptTraceT m a] is a monad transformer, where @EitherTrace a@ is lifted
+     into the context of the @m@ monad.
+-}
 newtype ExceptTraceT m a = ExceptTraceT (ExceptT Trace m a)
 
 instance Functor m => Functor (ExceptTraceT m) where
@@ -112,13 +158,21 @@ instance MonadIO m => MonadIO (ExceptTraceT m) where
 instance Monad m => MonadThrow (ExceptTraceT m) where
   throwM = ExceptTraceT . ExceptT . return . Left . singleError
 
+{- | Lifts an @EitherTracr@ into the monad transformer context. -}
 liftTrace :: Monad m => EitherTrace a -> ExceptTraceT m a
 liftTrace = ExceptTraceT . ExceptT . return . coerce
 
+{- | Lifts a regular @Either@ into the @ExceptTraceT@ transformed,
+     transforming a potential left into a trace consisting of just
+     a signle expcetion.
+-}
 liftEither :: (Monad m, Exception e) => Either e a -> ExceptTraceT m a
 liftEither (Left e) = ExceptTraceT . ExceptT . return . Left $ singleError e
 liftEither (Right a) = ExceptTraceT . ExceptT . return $ Right a
 
+{- | The same as @traceError@, but generalised to the monad transformer
+     context.
+-}
 traceErrorT :: (Monad m, Exception e) => e -> ExceptTraceT m a -> ExceptTraceT m a
 traceErrorT e (ExceptTraceT (ExceptT m)) = ExceptTraceT $ ExceptT $ do
   r <- m
@@ -126,9 +180,16 @@ traceErrorT e (ExceptTraceT (ExceptT m)) = ExceptTraceT $ ExceptT $ do
     Left (Trace es) -> return . Left $ Trace (SomeException e : es)
     right -> return right
 
+{- | @runExceptTraceT m@ evaluates @m@ and returns its result wrapped in the
+     inner monad, if it succeeds; otherwise returns the error trace.
+-}
 runExceptTraceT :: Monad m => ExceptTraceT m a -> m (Either Trace a)
 runExceptTraceT = runExceptT . coerce
 
+{- | Escapes the traced computation into any @MonadIO@ instance. In case of
+     success, result is returned, while in case of error, an IO exception is
+     thrown.
+-}
 runToIO :: MonadIO m => ExceptTraceT m a -> m a
 runToIO m = do
   result <- runExceptTraceT m
