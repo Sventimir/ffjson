@@ -1,9 +1,19 @@
+{- |
+Module      : Data.Hash
+Description : Computes hashes of arbitrary JSON values.
+Copyright   : Sventimir 2022
+
+This module exists for historic reasons. It was created to allow for
+testing JSON expressions for equality before JsonAst type was developed.
+It is, however, still used for testing for equality both in tests and
+in filters. At some point JSON values might be hash-consed to increase
+performance of equality testing, but there is no need to do it now.
+-}
 module Data.Hash (
   Hash,
   RollingHash(..),
   hash,
-  saltedHash,
-  hashEnum
+  saltedHash
 ) where
 
 import Data.Bits (Bits(..))
@@ -17,6 +27,9 @@ import Numeric (showHex)
 import Data.JSON (JSON(..))
 
 
+{- | Stores a 128-bit hash of some value. Can be created by sealing a
+     `RollingHash` with hash or `saltedHash` function.
+-}
 newtype Hash = Hash (Word64, Word64) deriving (Eq, Ord)
 
 foldNatDown :: (a -> Int -> a) -> (Int -> Bool) -> a -> Int -> a
@@ -97,6 +110,11 @@ instance Show Hash where
       | w > 15 = showHex w
       | otherwise = showHex (0 :: Int) . showHex w
 
+{- | Represents an ongoing `Hash` computation, where more values can still
+     be fed into it. Because it's an instance of `JSON` class, a JSON
+     expression can be turned into a `RollingHash` and the sealed, thus
+     computing the hash of the given value.
+-}
 newtype RollingHash = RollingHash (Hash -> Hash)
 
 defaultSeed :: Hash
@@ -150,8 +168,14 @@ concatRollingHashes = foldl concatHash
   where
   concatHash (RollingHash f) (RollingHash g) = RollingHash (g . f)
 
+{- | Seals a `RollingHash` expression by feeding a final value into the
+     computation.
+-}
 saltedHash :: Hash -> RollingHash -> Hash
 saltedHash salt (RollingHash h) = h salt
 
+{- | Seals a `RollingHash` expression by feeding a predefined constant value
+     into the computation.
+-}
 hash :: RollingHash -> Hash
 hash = saltedHash 1234567890123456789012345678901234567890

@@ -45,7 +45,7 @@ import Data.Coerce (coerce)
 import Data.List (intercalate)
 
 
-{- | An exception trace. Currently @Show@ instance can be used to display the
+{- | An exception trace. Currently `Show` instance can be used to display the
      error details to the user. -}
 newtype Trace = Trace [SomeException]
 
@@ -98,14 +98,14 @@ instance Monad EitherTrace where
 instance MonadThrow EitherTrace where
   throwM e = EitherTrace . Left $ singleError e
 
-{- | Lifts a regular either into the @EitherTrace@ context, where a potential
+{- | Lifts a regular either into the `EitherTrace` context, where a potential
      error is transformed into a trace consisting of just a single exception.
 -}
 ofEither :: Exception e => Either e a -> EitherTrace a
 ofEither (Right a) = EitherTrace $ Right a
 ofEither (Left e) = EitherTrace . Left $ singleError e
 
-{- | Takes a @Maybe a@ and an exception, and either returns an @a@
+{- | Takes a `Maybe a` and an exception, and either returns an @a@
      or raises the provided exception.
 -}
 eitherJustTrace :: Exception e => e -> Maybe a -> EitherTrace a
@@ -119,7 +119,7 @@ traceError :: Exception e => e -> EitherTrace a -> EitherTrace a
 traceError e (EitherTrace (Left (Trace es))) = EitherTrace . Left $ Trace (SomeException e : es)
 traceError _ right = right
 
-{- | Escapes the @EitherTrace a@ monad and returns either a list of
+{- | Escapes the `EitherTrace` @a@ monad and returns either a list of
      exceptions, describing the failure or a result of successful
      computation of type @a@.
 -}
@@ -127,7 +127,7 @@ runEitherTrace :: EitherTrace a -> Either [SomeException] a
 runEitherTrace = coerce
 
 
-{- | [ExceptTraceT m a] is a monad transformer, where @EitherTrace a@ is lifted
+{- | [ExceptTraceT m a] is a monad transformer, where `EitherTrace` @a@ is lifted
      into the context of the @m@ monad.
 -}
 newtype ExceptTraceT m a = ExceptTraceT (ExceptT Trace m a)
@@ -158,11 +158,11 @@ instance MonadIO m => MonadIO (ExceptTraceT m) where
 instance Monad m => MonadThrow (ExceptTraceT m) where
   throwM = ExceptTraceT . ExceptT . return . Left . singleError
 
-{- | Lifts an @EitherTracr@ into the monad transformer context. -}
+{- | Lifts an `EitherTrace` into the monad transformer context. -}
 liftTrace :: Monad m => EitherTrace a -> ExceptTraceT m a
 liftTrace = ExceptTraceT . ExceptT . return . coerce
 
-{- | Lifts a regular @Either@ into the @ExceptTraceT@ transformed,
+{- | Lifts a regular `Either` into the `ExceptTraceT` transformed,
      transforming a potential left into a trace consisting of just
      a signle expcetion.
 -}
@@ -170,7 +170,7 @@ liftEither :: (Monad m, Exception e) => Either e a -> ExceptTraceT m a
 liftEither (Left e) = ExceptTraceT . ExceptT . return . Left $ singleError e
 liftEither (Right a) = ExceptTraceT . ExceptT . return $ Right a
 
-{- | The same as @traceError@, but generalised to the monad transformer
+{- | The same as `traceError`, but generalised to the monad transformer
      context.
 -}
 traceErrorT :: (Monad m, Exception e) => e -> ExceptTraceT m a -> ExceptTraceT m a
@@ -186,7 +186,7 @@ traceErrorT e (ExceptTraceT (ExceptT m)) = ExceptTraceT $ ExceptT $ do
 runExceptTraceT :: Monad m => ExceptTraceT m a -> m (Either Trace a)
 runExceptTraceT = runExceptT . coerce
 
-{- | Escapes the traced computation into any @MonadIO@ instance. In case of
+{- | Escapes the traced computation into any `MonadIO` instance. In case of
      success, result is returned, while in case of error, an IO exception is
      thrown.
 -}
