@@ -18,6 +18,8 @@ module Language.Functions (
   jor,
   jnot,
   jIsNull,
+  jUnique,
+  jListFlatten,
   jtry,
   structSize,
   arrayReduce,
@@ -43,10 +45,12 @@ class Functions j where
   size :: j -> j
   jmap :: j -> j
   jfilter :: j -> j
+  jflatten :: j -> j
   jsum :: j -> j
   jproduct :: j -> j
   jall :: j -> j
   jany :: j -> j
+  unique :: j -> j
   union :: j -> j -> j
   optMap :: j -> j -> j
   neg :: j -> j
@@ -165,6 +169,28 @@ jIsNull :: JsonF
 jIsNull JNull = return $ bool True
 jIsNull _ = return $ bool False
 
+jListFlatten :: JsonF
+jListFlatten j = do
+  js <- expectArray j
+  doFlatten [] js
+  where
+  doFlatten acc [] = return $ array acc
+  doFlatten acc (JArray js : js') = doFlatten (acc ++ js) js'
+  doFlatten acc (j' : js) = doFlatten (acc ++ [j']) js
+
+jUnique :: JsonF
+jUnique input = do
+  js <- expectArray input
+  return . array $ filterUnique [] js
+  where
+  filterUnique acc [] = reverse acc
+  filterUnique acc (j : js) =
+    let h = hash $ toJSON j in
+    if any (\j' -> hash (toJSON j') == h) acc
+    then filterUnique acc js
+    else filterUnique (j : acc) js
+  
+
 jtry :: JsonF -> JsonF
 jtry f json = case runEitherTrace $ f json of
   Right j -> return j
@@ -187,10 +213,12 @@ instance Functions (Repr j) where
   size (Repr j) = Repr $ "size" <> j
   jmap (Repr f) = Repr $ "map (" <> f <> ")"
   jfilter (Repr f) = Repr $ "filter (" <> f <> ")"
+  jflatten (Repr f) = Repr $ "flatten (" <> f <> ")"
   jsum (Repr f) = Repr $ "sum (" <> f <> ")"
   jproduct (Repr f) = Repr $ "product (" <> f <> ")"
   jall (Repr f) = Repr $ "all (" <> f <> ")"
   jany (Repr f) = Repr $ "any (" <> f <> ")"
+  unique (Repr f) = Repr $ "unique (" <> f <> ")"
   union (Repr l) (Repr r) = Repr $ "union (" <> l <> " " <> r <> ")"
   optMap (Repr opt) (Repr f) = Repr $ opt <> " ? " <> f
   neg (Repr j) = Repr $ "neg" <> j

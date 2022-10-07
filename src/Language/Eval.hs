@@ -44,10 +44,12 @@ instance Functions Eval where
   compose (Eval l) (Eval r) = Eval (l >=> r)
   jmap (Eval f) = Eval $ Fun.arrayMap f
   jfilter (Eval f) = Eval $ Fun.arrayFilter f
+  jflatten = uniop Fun.jListFlatten
   jsum = uniop $ Fun.arrayReduce Fun.numPlus
   jproduct = uniop $ Fun.arrayReduce Fun.numMult
   jall = uniop $ Fun.arrayReduce Fun.jand
   jany = uniop $ Fun.arrayReduce Fun.jor
+  unique = uniop Fun.jUnique
   union = binop Fun.objUnion
   optMap (Eval opt) (Eval f) = Eval $ Fun.optionMap f opt
   keys = uniop Fun.keysAst
