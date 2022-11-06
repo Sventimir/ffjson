@@ -10,7 +10,8 @@ module Parser.JSON (
   space,
   array,
   object,
-  json
+  json,
+  tokJson
 ) where
 
 import Prelude hiding (null)
@@ -22,8 +23,11 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 
 import Parser.Core (Parser, parse, lexeme, space, punctuation, consumeEverything)
+import Parser.Token (Token(..), TokParser, parseTokens, tokenizer, tokString,
+                     tokNumber, tokName, tokSymbol)
 
 import Text.Megaparsec (between, chunk, manyTill, sepBy, chunk, try)
+import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 
@@ -31,6 +35,11 @@ import qualified Text.Megaparsec.Char.Lexer as Lexer
 
 parseJSON :: JSON j => String -> Text -> EitherTrace j
 parseJSON = parse (consumeEverything $ fix json)
+
+parseJson :: JSON j => String -> Text -> EitherTrace j
+parseJson filename input = do
+  tokens <- parse tokenizer filename input
+  parseTokens (fix tokJson) filename tokens
 
 string :: Monad m => Parser m Text
 string = lexeme $ Text.pack <$> (qmark >> manyTill Lexer.charLiteral qmark)
@@ -73,3 +82,26 @@ object self = lexeme $ do
 
 json :: (JSON j, Monad m) => Parser m j -> Parser m j
 json self = fmap str string <|> number <|> constants <|> arr self <|> object self
+
+tokJson :: (JSON j, Monad m) => TokParser m j -> TokParser m j
+tokJson subexpr = str <$> tokString
+              <|> num <$> tokNumber
+              <|> (tokName "null" >> return null)
+              <|> (tokName "true" >> return (bool True))
+              <|> (tokName "false" >> return (bool False))
+              <|> (array <$> tokArray subexpr)
+              <|> (obj <$> tokObject subexpr)
+
+tokArray :: (JSON j, Monad m) => TokParser m j -> TokParser m [j]
+tokArray subexpr = Megaparsec.between (tokSymbol "[") (tokSymbol "]")
+                 $ Megaparsec.sepBy subexpr (tokSymbol ",")
+
+tokObject :: (JSON j, Monad m) => TokParser m j -> TokParser m [(Text, j)]
+tokObject subexpr = Megaparsec.between (tokSymbol "{") (tokSymbol "}")
+                  $ Megaparsec.sepBy kvPair (tokSymbol ",")
+  where
+  kvPair = do
+    key <- tokString
+    tokSymbol "="
+    value <- subexpr
+    return (key, value)

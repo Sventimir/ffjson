@@ -5,7 +5,8 @@ module Parser.Core (
   space,
   lexeme,
   punctuation,
-  consumeEverything
+  consumeEverything,
+  mapLeft
 ) where
 
 import Control.Monad.Catch (Exception)
@@ -13,25 +14,17 @@ import Control.Monad.Catch (Exception)
 import Data.Error.Trace (EitherTrace, ofEither)
 import Data.Coerce (coerce)
 import Data.Functor.Identity (Identity)
-import Data.Text (Text, unpack)
+import Data.Text (Text)
+import Data.Void (Void)
 
 import Text.Megaparsec (ParsecT)
 import qualified Text.Megaparsec as Megaparsec
-import Text.Megaparsec.Error (ParseErrorBundle(..), ShowErrorComponent(..), errorBundlePretty)
+import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty)
 import Text.Megaparsec.Char (space1, char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 
 
-newtype InternalParseError = UnexpectedToken Text
-  deriving (Show, Eq, Ord)
-
-instance ShowErrorComponent InternalParseError where
-  errorComponentLen = length . showErrorComponent
-  showErrorComponent (UnexpectedToken tok) =
-    "Unexpected token: '" <> unpack tok <> "'."
-
-
-newtype ParseError = ParseError (ParseErrorBundle Text InternalParseError)
+newtype ParseError = ParseError (ParseErrorBundle Text Void)
 
 instance Exception ParseError where
 
@@ -39,7 +32,7 @@ instance Show ParseError where
   show = errorBundlePretty . coerce
 
 
-type Parser m a = ParsecT InternalParseError Text m a
+type Parser m a = ParsecT Void Text m a
 
 parse :: Parser Identity a -> String -> Text -> EitherTrace a
 parse p fname = ofEither . mapLeft ParseError . Megaparsec.parse p fname

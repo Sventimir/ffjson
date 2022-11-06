@@ -4,7 +4,9 @@ module Data.JSON.Repr (
   ReprConfig(..),
   toText,
   reprS,
-  defaultReprConfig
+  defaultReprConfig,
+  numAsRatio,
+  numAsDecimal
 ) where
 
 import Control.Monad.State (StateT, evalStateT, get, gets, put)
@@ -104,13 +106,16 @@ reprS (Repr json) cfg =
               indentation = 0,
               indentStep = indentationStep cfg,
               printNum = if printRationals cfg then numAsRatio else numAsDecimal})
-  where
-  numAsDecimal n
-    | denominator n == 1 = toText $ numerator n
-    | otherwise = toText (fromRational n :: Double)
-  numAsRatio n
-    | denominator n == 1 = toText $ numerator n
-    | otherwise = toText (numerator n) <> " / " <> toText (denominator n)
+
+numAsDecimal :: Rational -> Text
+numAsDecimal n
+  | denominator n == 1 = toText $ numerator n
+  | otherwise = toText (fromRational n :: Double)
+
+numAsRatio :: Rational -> Text
+numAsRatio n
+  | denominator n == 1 = toText $ numerator n
+  | otherwise = toText (numerator n) <> " / " <> toText (denominator n)
 
 instance Show (Repr String) where
   show r = reprS r defaultReprConfig Text.unpack
