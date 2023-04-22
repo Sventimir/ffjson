@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 {- |
 Module      : Data.Error.Trace
 Description : Provides detailed traces to error messages.
@@ -24,6 +24,7 @@ module Data.Error.Trace (
   Trace,
   EitherTrace,
   ExceptTraceT,
+  (!:),
   runEitherTrace,
   eitherJustTrace,
   ofEither,
@@ -32,13 +33,17 @@ module Data.Error.Trace (
   traceError,
   traceErrorT,
   runExceptTraceT,
-  runToIO
+  runToIO,
+  catchTraceT,
+  finallyTraceT
 ) where
 
 import Control.Applicative (Alternative(..))
 import Control.Exception (throwIO)
-import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..))
-import Control.Monad.Except (ExceptT(..), throwError, runExceptT)
+import Control.Monad (MonadPlus(..), join)
+import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..),
+                            MonadCatch(..), MonadMask(..))
+import Control.Monad.Except (ExceptT(..), MonadError(..), runExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
 
 import Data.Coerce (coerce)
@@ -63,7 +68,7 @@ instance Exception a => Exception [a] where
 
 instance Monad m => MonadThrow (ExceptT Trace m) where
   throwM = throwError . singleError
-    
+
 infixr 5 !:
 
 (!:) :: Exception e => e -> Trace -> Trace
@@ -71,6 +76,13 @@ e !: (Trace es) = Trace (SomeException e : es)
 
 singleError :: Exception e => e -> Trace
 singleError e = Trace [SomeException e]
+
+-- Private. Indicates an empty trace being inspected, which should never
+-- happen, unless there's a bug around here.
+newtype NoTrace = NoTrace ()
+  deriving Show
+
+instance Exception NoTrace where
 
 {- | [EitherTrace a] represents either a result of successful computation
      returning an @a@ or an error described by a trace. The trace is a list
@@ -97,6 +109,14 @@ instance Monad EitherTrace where
 
 instance MonadThrow EitherTrace where
   throwM e = EitherTrace . Left $ singleError e
+
+instance Alternative EitherTrace where
+  empty = EitherTrace . Left $ Trace []
+  ok@(EitherTrace (Right _)) <|> _ = ok
+  (EitherTrace (Left _)) <|> ok@(EitherTrace (Right _)) = ok
+  (EitherTrace (Left lt)) <|> (EitherTrace (Left rt)) = EitherTrace $ Left (lt <> rt)
+  
+instance MonadPlus EitherTrace where
 
 {- | Lifts a regular either into the `EitherTrace` context, where a potential
      error is transformed into a trace consisting of just a single exception.
@@ -152,6 +172,8 @@ instance Monad m => Monad (ExceptTraceT m) where
         let ExceptTraceT m' = f a in
         runExceptT m'
 
+instance Monad m => MonadPlus (ExceptTraceT m) where
+
 instance MonadIO m => MonadIO (ExceptTraceT m) where
   liftIO = ExceptTraceT . ExceptT . fmap Right . liftIO
 
@@ -196,3 +218,14 @@ runToIO m = do
   case result of
     Right a -> return a
     Left (Trace es) -> liftIO $ throwIO es
+
+finallyTraceT :: Monad m => ExceptTraceT m a -> ExceptTraceT m () -> ExceptTraceT m a
+finallyTraceT m cleanup =
+  catchTraceT m (\trace -> cleanup >> (ExceptTraceT . ExceptT . return $ Left trace))
+
+catchTraceT :: Monad m => ExceptTraceT m a -> (Trace -> ExceptTraceT m a) -> ExceptTraceT m a
+catchTraceT (ExceptTraceT m) handle = ExceptTraceT . ExceptT $ do
+  res <- runExceptT m
+  case res of
+    Left trace -> runExceptTraceT $ handle trace
+    right -> return right

@@ -6,6 +6,7 @@ import Test.Hspec
 
 import Control.Monad (foldM)
 import Control.Monad.Catch (SomeException, fromException)
+import Control.Monad.Fix (fix)
 
 import Data.Error.Trace (ExceptTraceT, liftTrace, runToIO)
 import Data.JSON (JSON(..))
@@ -13,7 +14,8 @@ import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..))
 import Data.Text (Text)
 
 import Language.Eval
-import Parser.Core (ParseError(..), parse, consumeEverything)
+import Parser.Core (ParseError(..), parse, runTokenParser, consumeEverything)
+import Parser.Token (tokenize)
 import qualified Parser.JSON as JsonParser
 import Parser.Language (exprParser)
 
@@ -192,7 +194,8 @@ evalTests = do
       
 appliedTo :: Text -> Text -> IO JsonAst
 appliedTo exprTxt jsonTxt = runToIO $ do
-  json <- liftTrace $ JsonParser.parseJSON "test JSON" jsonTxt
+  tokens <- liftTrace $ parse tokenize "test JSON" jsonTxt
+  json <- runTokenParser (fix JsonParser.tokJSON) tokens
   expr <- liftTrace $ parse (consumeEverything exprParser) "test expression" exprTxt
   liftTrace $ eval expr json
 

@@ -11,35 +11,31 @@ module Parser.JSON (
   array,
   object,
   json,
-  tokJson
+  tokJSON
 ) where
 
 import Prelude hiding (null)
 import Control.Applicative ((<|>))
+import Control.Monad (void)
+import Control.Monad.Catch (MonadThrow(..))
 import Data.Error.Trace (EitherTrace)
 import Data.Function (fix)
 import Data.JSON (JSON(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Parser.Core (Parser, parse, lexeme, space, punctuation, consumeEverything)
-import Parser.Token (Token(..), TokParser, parseTokens, tokenizer, tokString,
-                     tokNumber, tokName, tokSymbol)
+import Parser.Core (Parser, TokenParser, TokParseError(..), parse, lexeme,
+                    space, punctuation, consumeEverything, tokFail, select,
+                    token, match)
+import Parser.Token (Token(..))
 
 import Text.Megaparsec (between, chunk, manyTill, sepBy, chunk, try)
-import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec.Char (char)
 import qualified Text.Megaparsec.Char.Lexer as Lexer
 
 
-
 parseJSON :: JSON j => String -> Text -> EitherTrace j
 parseJSON = parse (consumeEverything $ fix json)
-
-parseJson :: JSON j => String -> Text -> EitherTrace j
-parseJson filename input = do
-  tokens <- parse tokenizer filename input
-  parseTokens (fix tokJson) filename tokens
 
 string :: Monad m => Parser m Text
 string = lexeme $ Text.pack <$> (qmark >> manyTill Lexer.charLiteral qmark)
@@ -83,25 +79,35 @@ object self = lexeme $ do
 json :: (JSON j, Monad m) => Parser m j -> Parser m j
 json self = fmap str string <|> number <|> constants <|> arr self <|> object self
 
-tokJson :: (JSON j, Monad m) => TokParser m j -> TokParser m j
-tokJson subexpr = str <$> tokString
-              <|> num <$> tokNumber
-              <|> (tokName "null" >> return null)
-              <|> (tokName "true" >> return (bool True))
-              <|> (tokName "false" >> return (bool False))
-              <|> (array <$> tokArray subexpr)
-              <|> (obj <$> tokObject subexpr)
-
-tokArray :: (JSON j, Monad m) => TokParser m j -> TokParser m [j]
-tokArray subexpr = Megaparsec.between (tokSymbol "[") (tokSymbol "]")
-                 $ Megaparsec.sepBy subexpr (tokSymbol ",")
-
-tokObject :: (JSON j, Monad m) => TokParser m j -> TokParser m [(Text, j)]
-tokObject subexpr = Megaparsec.between (tokSymbol "{") (tokSymbol "}")
-                  $ Megaparsec.sepBy kvPair (tokSymbol ",")
+tokJSON :: (JSON j, Monad m) => TokenParser Token m j -> TokenParser Token m j
+tokJSON subexpr = select variant
   where
+  variant (Name "null") = return null
+  variant (Name "true") = return $ bool True
+  variant (Name "false") = return $ bool False
+  variant (Num n) = return $ num n
+  variant (Str s) = return $ str s
+  variant (Sym "[") = array <$> manyEnclosed (Sym "]") (Sym ",") subexpr
+  variant (Sym "{") = obj <$> manyEnclosed (Sym "}") (Sym ",") kvPair
+  variant tok = tokFail $ UnexpectedToken
+    tok
+    "a string, number, constant, array or an object."
   kvPair = do
-    key <- tokString
-    tokSymbol "="
-    value <- subexpr
-    return (key, value)
+    k <- match string
+    void $ token (Sym ":")
+    v <- subexpr
+    return (k, v)
+  string (Str s) = return s
+  string t = throwM $ UnexpectedToken t "a string"
+
+manyEnclosed :: Monad m => Token -> Token -> TokenParser Token m j -> TokenParser Token m [j]
+manyEnclosed endSymbol sep p = (token endSymbol >> return []) <|> accum []
+  where
+  accum acc = do
+    el <- p
+    select $ dispatch (el : acc)
+  dispatch acc t
+    | t == endSymbol = return $ reverse acc
+    | t == sep = accum acc
+    | otherwise = tokFail $ UnexpectedToken t "a comma or end of sequence"
+    

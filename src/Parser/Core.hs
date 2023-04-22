@@ -1,20 +1,37 @@
 module Parser.Core (
   Parser,
   ParseError(..),
+  TokenParser,
+  TokParseError(..),
   parse,
   space,
   lexeme,
   punctuation,
   consumeEverything,
-  mapLeft
+  mapLeft,
+  -- Token parsers
+  runTokenParser,
+  tokFail,
+  tokenP,
+  token,
+  between,
+  match,
+  skip,
+  select,
+  withSep
 ) where
 
+import Control.Applicative (Alternative(..))
 import Control.Monad.Catch (Exception)
+import Control.Monad.State (StateT(..), MonadState(..), evalStateT, gets, modify)
+import Control.Monad.Trans.Class (lift)
 
-import Data.Error.Trace (EitherTrace, ofEither)
+import Data.Error.Trace (EitherTrace, ExceptTraceT, ofEither, liftEither, liftTrace)
 import Data.Coerce (coerce)
 import Data.Functor.Identity (Identity)
+import Data.List.Zipper (Zipper, fromList, safeCursor, right)
 import Data.Text (Text)
+import Data.Typeable (Typeable)
 import Data.Void (Void)
 
 import Text.Megaparsec (ParsecT)
@@ -56,3 +73,81 @@ consumeEverything p = do
   a <- p
   () <- Megaparsec.eof
   return a
+
+type TokenParser t m a = StateT (Zipper t) (ExceptTraceT m) a
+
+data TokParseError t = EndOfInput
+                     | Empty
+                     | UnexpectedToken t String
+
+instance Show t => Show (TokParseError t) where
+  show Empty = "Exhausted possible actions."
+  show EndOfInput = "Unexpected end of input."
+  show (UnexpectedToken t reason) =
+    "Unexpected token: '" <> show t <> "' where " <> reason <> " was expected."
+
+instance (Show t, Typeable t) => Exception (TokParseError t) where
+
+runTokenParser :: Monad m => TokenParser t m a -> [t] -> ExceptTraceT m a
+runTokenParser p tokens = evalStateT p (fromList tokens)
+
+tokFail :: (Show t, Typeable t, Monad m) => TokParseError t -> TokenParser t m a
+tokFail e = StateT $ \_ -> liftEither $ Left e
+
+currentToken :: (Show t, Typeable t, Monad m) => TokenParser t m t
+currentToken = gets safeCursor >>= failOnEOF
+  where
+  failOnEOF Nothing = tokFail EndOfInput
+  failOnEOF (Just tok) = return tok
+
+tokenP :: (Show t, Typeable t, Monad m) => String -> (t -> Bool) -> TokenParser t m t
+tokenP expected predicate = do
+  tok <- currentToken
+  if predicate tok
+  then do
+    skip
+    return tok
+  else
+    tokFail $ UnexpectedToken tok expected
+
+token :: (Eq t, Show t, Typeable t, Monad m) => t -> TokenParser t m t
+token t = tokenP ("'" <> show t <> "'") (== t)
+
+
+between :: (Eq t, Show t, Typeable t, Monad m) =>
+           TokenParser t m () -> TokenParser t m a -> TokenParser t m () ->
+           TokenParser t m a
+between prefix main suffix = do
+  prefix
+  ret <- main
+  suffix
+  return ret
+
+skip :: Monad m => TokenParser t m ()
+skip = modify right
+
+match :: (Show t, Typeable t, Monad m) =>
+         (t -> EitherTrace a) -> TokenParser t m a
+match f = do
+  t <- currentToken
+  ret <- lift . liftTrace $ f t
+  skip
+  return ret
+
+select :: (Show t, Typeable t, Monad m) =>
+           (t -> TokenParser t m a) -> TokenParser t m a
+select selector = do
+  origInput <- get
+  case safeCursor origInput of
+    Nothing -> tokFail EndOfInput
+    Just t -> skip >> selector t
+
+withSep :: (Show t, Typeable t, Monad m) =>
+         TokenParser t m () -> TokenParser t m a -> TokenParser t m [a]
+withSep separator element = reverse <$> accum []
+  where
+  accum acc = do
+    acc' <- (: acc) <$> element
+    -- Select continuation based on whether or not another separator can be parsed.
+    cont <- (separator >> return accum) <|> return return
+    cont acc'
