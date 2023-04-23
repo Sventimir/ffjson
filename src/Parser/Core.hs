@@ -12,16 +12,20 @@ module Parser.Core (
   -- Token parsers
   runTokenParser,
   tokFail,
+  currentToken,
   tokenP,
   token,
   between,
+  many1,
   match,
+  backtrack,
   skip,
   select,
-  withSep
+  withSep,
+  optional
 ) where
 
-import Control.Applicative (Alternative(..))
+import Control.Applicative (Alternative(..), many)
 import Control.Monad.Catch (Exception)
 import Control.Monad.State (StateT(..), MonadState(..), evalStateT, gets, modify)
 import Control.Monad.Trans.Class (lift)
@@ -29,7 +33,7 @@ import Control.Monad.Trans.Class (lift)
 import Data.Error.Trace (EitherTrace, ExceptTraceT, ofEither, liftEither, liftTrace)
 import Data.Coerce (coerce)
 import Data.Functor.Identity (Identity)
-import Data.List.Zipper (Zipper, fromList, safeCursor, right)
+import Data.List.Zipper (Zipper, fromList, safeCursor, left, right)
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Data.Void (Void)
@@ -79,12 +83,16 @@ type TokenParser t m a = StateT (Zipper t) (ExceptTraceT m) a
 data TokParseError t = EndOfInput
                      | Empty
                      | UnexpectedToken t String
+                     | InvalidIndex t
+                     | Undefined Text
 
 instance Show t => Show (TokParseError t) where
   show Empty = "Exhausted possible actions."
   show EndOfInput = "Unexpected end of input."
   show (UnexpectedToken t reason) =
     "Unexpected token: '" <> show t <> "' where " <> reason <> " was expected."
+  show (InvalidIndex t) = "Invalid index: " <> show t <> "."
+  show (Undefined n) = "Undefined symbol: " <> show n <> "."
 
 instance (Show t, Typeable t) => Exception (TokParseError t) where
 
@@ -110,8 +118,8 @@ tokenP expected predicate = do
   else
     tokFail $ UnexpectedToken tok expected
 
-token :: (Eq t, Show t, Typeable t, Monad m) => t -> TokenParser t m t
-token t = tokenP ("'" <> show t <> "'") (== t)
+token :: (Eq t, Show t, Typeable t, Monad m) => t -> TokenParser t m ()
+token t = tokenP ("'" <> show t <> "'") (== t) >> return ()
 
 
 between :: (Eq t, Show t, Typeable t, Monad m) =>
@@ -125,6 +133,9 @@ between prefix main suffix = do
 
 skip :: Monad m => TokenParser t m ()
 skip = modify right
+
+backtrack :: Monad m => TokenParser t m ()
+backtrack = modify left
 
 match :: (Show t, Typeable t, Monad m) =>
          (t -> EitherTrace a) -> TokenParser t m a
@@ -145,9 +156,17 @@ select selector = do
 withSep :: (Show t, Typeable t, Monad m) =>
          TokenParser t m () -> TokenParser t m a -> TokenParser t m [a]
 withSep separator element = reverse <$> accum []
-  where
+ where
   accum acc = do
     acc' <- (: acc) <$> element
     -- Select continuation based on whether or not another separator can be parsed.
     cont <- (separator >> return accum) <|> return return
     cont acc'
+
+many1 :: (Alternative m, Monad m) => m a -> m [a]
+many1 p = reverse <$> (do
+                          e <- p
+                          (e :) <$> many p)
+
+optional :: Monad m => TokenParser t m a -> TokenParser t m (Maybe a)
+optional p = (Just <$> p) <|> return Nothing

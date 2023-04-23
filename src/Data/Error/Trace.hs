@@ -40,9 +40,8 @@ module Data.Error.Trace (
 
 import Control.Applicative (Alternative(..))
 import Control.Exception (throwIO)
-import Control.Monad (MonadPlus(..), join)
-import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..),
-                            MonadCatch(..), MonadMask(..))
+import Control.Monad (MonadPlus(..))
+import Control.Monad.Catch (Exception, SomeException(..), MonadThrow(..))
 import Control.Monad.Except (ExceptT(..), MonadError(..), runExceptT)
 import Control.Monad.IO.Class (MonadIO (..))
 

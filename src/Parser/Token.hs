@@ -8,6 +8,7 @@ import Control.Applicative (Alternative(..))
 import Data.JSON.Repr (numAsDecimal)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Typeable (Typeable)
 
 import Parser.Core (Parser, lexeme, space)
 
@@ -21,7 +22,7 @@ data Token = Name Text -- symbol consisting of alphanumeric characters
            | Sym Text  -- symbol consisting of non-alphanumeric characters
            | Num Rational
            | Str Text
-           deriving (Eq, Ord)
+           deriving (Eq, Ord, Typeable)
 
 instance Show Token where
   show (Name n) = Text.unpack n
@@ -29,7 +30,6 @@ instance Show Token where
   show (Num n) = Text.unpack $ numAsDecimal n
   show (Str s) = '"' : Text.unpack s ++ "\""
 
-  
 tokenize :: Monad m => Parser m [Token]
 tokenize = tokens []
 
@@ -50,7 +50,7 @@ string = lexeme $ Text.pack <$> (qmark >> Megaparsec.manyTill Lexer.charLiteral 
   qmark = MegaparsecChar.char '"'
 
 number :: Monad m => Parser m Rational
-number = lexeme $ Lexer.signed space (Megaparsec.try float <|> decimal)
+number = lexeme (Megaparsec.try float <|> decimal)
   where
   float = toRational <$> (Lexer.float :: Parser m Double)
   decimal = toRational <$> (Lexer.decimal :: Parser m Integer)
@@ -70,4 +70,3 @@ many1 p = do
   case r of
     [] -> fail "No occurrences"
     rs -> return rs
-

@@ -26,7 +26,7 @@ import qualified Data.Text as Text
 
 import Parser.Core (Parser, TokenParser, TokParseError(..), parse, lexeme,
                     space, punctuation, consumeEverything, tokFail, select,
-                    token, match)
+                    token, match, backtrack)
 import Parser.Token (Token(..))
 
 import Text.Megaparsec (between, chunk, manyTill, sepBy, chunk, try)
@@ -82,16 +82,16 @@ json self = fmap str string <|> number <|> constants <|> arr self <|> object sel
 tokJSON :: (JSON j, Monad m) => TokenParser Token m j -> TokenParser Token m j
 tokJSON subexpr = select variant
   where
+  unexpectedToken t = tokFail $ UnexpectedToken t "a string, number, constant, array or an object"
   variant (Name "null") = return null
   variant (Name "true") = return $ bool True
   variant (Name "false") = return $ bool False
   variant (Num n) = return $ num n
   variant (Str s) = return $ str s
+  variant (Sym "-") = (num . negate <$> select number) <|> (backtrack >> unexpectedToken (Sym "-"))
   variant (Sym "[") = array <$> manyEnclosed (Sym "]") (Sym ",") subexpr
   variant (Sym "{") = obj <$> manyEnclosed (Sym "}") (Sym ",") kvPair
-  variant tok = tokFail $ UnexpectedToken
-    tok
-    "a string, number, constant, array or an object."
+  variant tok = unexpectedToken tok
   kvPair = do
     k <- match string
     void $ token (Sym ":")
@@ -99,6 +99,8 @@ tokJSON subexpr = select variant
     return (k, v)
   string (Str s) = return s
   string t = throwM $ UnexpectedToken t "a string"
+  number (Num n) = return n
+  number t = throwM $ UnexpectedToken t "a number"
 
 manyEnclosed :: Monad m => Token -> Token -> TokenParser Token m j -> TokenParser Token m [j]
 manyEnclosed endSymbol sep p = (token endSymbol >> return []) <|> accum []
