@@ -3,8 +3,7 @@ module Data.Filter (
   Filter,
   evaluate,
   sourceCode,
-  parseFilter,
-  exprParser
+  parseFilter
 ) where
 
 import Control.Monad (void)
@@ -24,7 +23,7 @@ import Language.Eval (Eval, eval)
 import Parser.Core (TokenParser, consumeEverything, lexeme, parse, select,
                     runTokenParser, withSep, withDefault, token)
 import Parser.JSON (Parser, punctuation)
-import Parser.Language (exprParser, tokExpr)
+import Parser.Language (tokExpr)
 import Parser.Token (Token(..), tokenize)
 
 import Text.Megaparsec (chunk, option, sepBy, some, try)

@@ -20,7 +20,7 @@ import Data.Text (Text, pack)
 import qualified Data.Text.IO as Text
 
 import Parser.Core (ParseError, parse, runTokenParser)
-import Parser.JSON (parseJSON, tokJSON)
+import Parser.JSON (tokJSON)
 import Parser.CLI (CliArgs(..), FlagSpec(..), Or(..), Consume(..), cliParser)
 import Parser.Token (tokenize)
 
