@@ -3,6 +3,7 @@ module Main where
 
 import Control.Monad (foldM, forM_)
 import Control.Monad.Catch (Exception, MonadThrow(..))
+import Control.Monad.Fix (fix)
 import Control.Monad.IO.Class (MonadIO)
 
 import Data.Error.Trace (ExceptTraceT, runExceptTraceT, liftTrace, traceErrorT)
@@ -18,9 +19,10 @@ import Data.Output (Output(..), parseOutput)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as Text
 
-import Parser.Core (ParseError)
-import Parser.JSON (parseJSON)
+import Parser.Core (ParseError, parse, runTokenParser)
+import Parser.JSON (parseJSON, tokJSON)
 import Parser.CLI (CliArgs(..), FlagSpec(..), Or(..), Consume(..), cliParser)
+import Parser.Token (tokenize)
 
 import System.IO (IOMode(..), Handle, withFile)
 
@@ -68,7 +70,7 @@ setInputName name cfg = case currentInput cfg of
 
 addFilter :: String -> Config -> ExceptTraceT IO Config
 addFilter code cfg = do
-  filt <- liftTrace . Filter.parseFilter $ pack code
+  filt <- Filter.parseFilter $ pack code
   return $ (finalizeInput cfg) { filters = filt : filters cfg }
 
 finalizeInput :: Config -> Config
@@ -127,7 +129,9 @@ readJson streams (k, input) =
       return $ addStream k (toJSON v) streams
 
 parseJson :: (JSON j, MonadIO m) => String -> Text -> ExceptTraceT m j
-parseJson src = liftTrace . parseJSON src
+parseJson src json = do
+  tokens <- liftTrace $ parse tokenize src json
+  runTokenParser (fix tokJSON) tokens
 
 outputJson :: ReprConfig -> Streamset -> Output -> IO ()
 outputJson cfg streamset (Output key filename) =

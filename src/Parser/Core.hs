@@ -22,7 +22,8 @@ module Parser.Core (
   skip,
   select,
   withSep,
-  optional
+  optional,
+  withDefault
 ) where
 
 import Control.Applicative (Alternative(..), many)
@@ -170,3 +171,6 @@ many1 p = reverse <$> (do
 
 optional :: Monad m => TokenParser t m a -> TokenParser t m (Maybe a)
 optional p = (Just <$> p) <|> return Nothing
+
+withDefault :: Monad m => a -> TokenParser t m a -> TokenParser t m a
+withDefault def p = optional p >>= maybe (return def) return
