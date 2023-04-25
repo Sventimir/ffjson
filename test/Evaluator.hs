@@ -102,17 +102,22 @@ evalTests = do
       "plus .a 1" `appliedTo` "{\"a\": 2}" `shouldReturn` num 3
     it "Function called with two getters also works." $
       "mult (.[0]) .[1]" `appliedTo` "[2, 5]" `shouldReturn` num 10
-  xdescribe "Test order of arithmetic operations" $ do
+  describe "Test order of arithmetic operations." $ do
     it "By default operations are evaluated in the order of appearance." $
-      "1 + 2 * 3 + 4" `appliedTo` "[]" `shouldReturn` num 11
+      "1 + 2 - 3 + 4" `appliedTo` "[]" `shouldReturn` num 4
     it "Operators of higher precedence bind stronger than those of lower precedence" $
       ".a * .b + .c * .d" `appliedTo` "{\"a\": 2, \"b\": 3, \"c\": 5, \"d\": 7}" `shouldReturn` num 41
     it "Parentheses can modify operation precedence." $
       "(1 + 2) * (3 + 4)" `appliedTo` "{}" `shouldReturn` num 21
     it "Function call binds more strongly than operators." $
-      "(mult .[0] .[1]) + (mult .[2] .[3])" `appliedTo` "[2, 3, 4, 5]" `shouldReturn` num 26
+      "mult (.[0]) .[1] + mult (.[2]) .[3]" `appliedTo` "[2, 3, 4, 5]" `shouldReturn` num 26
     it "Parentheses bind more strongly than anything else." $
       "mult (.a + .b) 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 12
+    it "If statements bind the least strongly." $
+      "if .a < .b then .a else .b + 1" `appliedTo` "{\"a\": 9, \"b\": 5}" `shouldReturn` num 6
+    it "Parentheses override default precedence." $
+      "(if .a > .b then .a else .b) - (if .a < .b then .b else .a)"
+      `appliedTo` "{\"a\": 3, \"b\": 7}" `shouldReturn` num 0
   describe "Test map function." $ do
     it "Map alters every element of an array as if it was a standalone JSON." $
       "map (id + 1)" `appliedTo` "[1, 2, 3]" `shouldReturn` array [num 2, num 3, num 4]

@@ -171,14 +171,9 @@ parentheses = Megaparsec.between (punctuation '(') (punctuation ')')
 -- Token parser
 ------------------------------------------------------
 tokExpr :: (Monad m, Syntax j, Functions j) => TokenParser Token m j
-tokExpr = tokOperator (   tokGetter
-                      <|> tokConditional tokExpr
-                      <|> tokFunction funArg
-                      <|> JsonParser.tokJSON tokExpr
-                      <|> tokParentheses tokExpr
-                      )
+tokExpr = tokConditional tokExpr <|> tokOperator funArg
   where
-  funArg = tokGetter <|> tokConditional tokExpr <|> tokFunction funArg
+  funArg = tokGetter <|> tokFunction funArg
        <|> JsonParser.tokJSON tokExpr <|> tokParentheses tokExpr
 
 tokParentheses :: Monad m => TokenParser Token m j -> TokenParser Token m j
@@ -197,19 +192,14 @@ tokFunction arg = select fun
   fun t = tokFail $ UnexpectedToken t "a function name"
 
 tokOperator :: (Monad m, Functions j) => TokenParser Token m j -> TokenParser Token m j
-tokOperator expr = do
-  e <- expr
-  cont <- many $ do
-    op <- select operator
-    (,) op <$> expr
-  case cont of
-    [] -> return e
-    ops -> return $ foldl (\l (op, r) -> op l r) e ops
+tokOperator subExpr = foldr parseOp subExpr tokOperators
   where
-  operator (Sym s) = case Map.lookup s tokOperators of
-                       Just op -> return op
-                       Nothing -> tokFail $ Undefined s
-  operator t = tokFail $ UnexpectedToken t "an operator"
+  parseOp (symbol, f) expr = do
+    e <- expr
+    es <- many $ do
+      token $ Sym symbol
+      expr
+    return $ foldl f e es
 
 tokConditional :: (Monad m, Syntax j) => TokenParser Token m j -> TokenParser Token m j
 tokConditional expr = do
@@ -298,20 +288,20 @@ tokFunctions = Map.fromList [ ("id", const $ return Functions.identity)
   fun f arg = f <$> arg
   fun2 f arg = f <$> arg <*> arg
 
-tokOperators :: Functions j => Map Text (j -> j -> j)
-tokOperators = Map.fromList [ ("|", Functions.compose)
-                            , ("?", Functions.optMap)
-                            , ("&&", Functions.and)
-                            , ("||", Functions.or)
-                            , ("=", Functions.equal)
-                            , ("<", Functions.lt)
-                            , ("<=", Functions.lte)
-                            , (">", Functions.gt)
-                            , (">=", Functions.gte)
-                            , ("+", Functions.plus)
-                            , ("-", Functions.minus)
-                            , ("*", Functions.mult)
-                            , ("/", Functions.divide)
-                            , ("<>", Functions.concat)
-                            ]
+tokOperators :: Functions j => [(Text, (j -> j -> j))]
+tokOperators = [ ("|", Functions.compose)
+               , ("?", Functions.optMap)
+               , ("&&", Functions.and)
+               , ("||", Functions.or)
+               , ("=", Functions.equal)
+               , ("<", Functions.lt)
+               , ("<=", Functions.lte)
+               , (">", Functions.gt)
+               , (">=", Functions.gte)
+               , ("+", Functions.plus)
+               , ("-", Functions.minus)
+               , ("*", Functions.mult)
+               , ("/", Functions.divide)
+               , ("<>", Functions.concat)
+               ]
     
