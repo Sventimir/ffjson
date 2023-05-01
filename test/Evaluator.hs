@@ -14,7 +14,7 @@ import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..))
 import Data.Text (Text)
 
 import Language.Eval
-import Parser.Core (TokParseError(..), parse, runTokenParser)
+import Parser.Core (TokParseError(..), parse, runTokenParser, eof)
 import Parser.Token (Token, tokenize)
 import qualified Parser.JSON as JsonParser
 import Parser.Language (tokExpr)
@@ -111,6 +111,8 @@ evalTests = do
       "(1 + 2) * (3 + 4)" `appliedTo` "{}" `shouldReturn` num 21
     it "Function call binds more strongly than operators." $
       "mult (.[0]) .[1] + mult (.[2]) .[3]" `appliedTo` "[2, 3, 4, 5]" `shouldReturn` num 26
+    it "Function call can be an operator's argument." $
+      "plus (.a) .b * minus (.a) .b" `appliedTo` "{\"a\": 5, \"b\": 2}" `shouldReturn` num 21
     it "Parentheses bind more strongly than anything else." $
       "mult (.a + .b) 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 12
     it "If statements bind the least strongly." $
@@ -199,8 +201,13 @@ appliedTo exprTxt jsonTxt = runToIO $ do
   jsonTokens <- liftTrace $ parse tokenize "test JSON" jsonTxt
   json <- runTokenParser (fix JsonParser.tokJSON) jsonTokens
   exprTokens <- liftTrace $ parse tokenize "text expression" exprTxt
-  expr <- runTokenParser tokExpr exprTokens
+  expr <- runTokenParser langExpr exprTokens
   liftTrace $ eval expr json
+  where
+  langExpr = do
+    e <- tokExpr
+    eof
+    return e
 
 instance (Monad m, JSON a) => JSON (ExceptTraceT m a) where
   str = return . str

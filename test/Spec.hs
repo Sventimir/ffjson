@@ -6,12 +6,17 @@ import Data.Ratio ((%))
 import Data.Text (Text)
 import qualified Data.Text as Text
 
-import Data.Error.Trace (runEitherTrace)
+import Control.Monad.Fix
+import Control.Monad.Identity
+
+import Data.Error.Trace
 import Data.JSON
 import Data.JSON.AST
 import Data.JSON.Repr
 import Data.Hash
+import Parser.Core
 import Parser.JSON
+import Parser.Token
 
 import CLI (cliTests)
 import Evaluator (evalTests)
@@ -28,9 +33,9 @@ main = hspec $ do
       property $ \(Wrapson j) ->
                    let (repr, rollingHash) = j :: (Repr Text, RollingHash)
                        j' = reprS repr defaultReprConfig id in
-                   case runEitherTrace $ parseJSON "arbitrary" j' of
-                     Left _ -> False
-                     Right parsed -> hash rollingHash == hash parsed
+                   case runExceptTraceT $ parseJSON "arbitrary" j' of
+                     Identity (Left _) -> False
+                     Identity (Right parsed) -> hash rollingHash == hash parsed
 
 
 data Wrapson a where
@@ -68,3 +73,8 @@ keyValuePair = do
 
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f (a, b) = (a, f b)
+
+parseJSON :: (Monad m, JSON j) => String -> Text -> ExceptTraceT m j
+parseJSON src json = do
+  tokens <- liftTrace $ parse tokenize src json
+  runTokenParser (fix tokJSON) tokens

@@ -15,6 +15,7 @@ module Parser.Core (
   currentToken,
   tokenP,
   token,
+  eof,
   between,
   many1,
   match,
@@ -134,6 +135,12 @@ between prefix main suffix = do
 
 skip :: Monad m => TokenParser t m ()
 skip = modify right
+
+eof :: (Show t, Typeable t, Monad m) => TokenParser t m ()
+eof = gets safeCursor >>= isEof
+  where
+  isEof Nothing = return ()
+  isEof (Just t) = tokFail $ UnexpectedToken t "end of input"
 
 backtrack :: Monad m => TokenParser t m ()
 backtrack = modify left
