@@ -6,7 +6,6 @@ module Data.Filter (
   parseFilter
 ) where
 
-import Control.Monad (void)
 import Control.Monad.Catch (Exception)
 import Control.Monad.State (StateT(..))
 
@@ -15,19 +14,16 @@ import qualified Data.JSON as JSON
 import qualified Data.JSON.AST as AST
 import Data.JSON.Repr (reprS, defaultReprConfig)
 import Data.JsonStream (Streamset, getStreams, addStream)
-import Data.Ratio (denominator)
+import Data.Ratio (denominator, numerator)
 import Data.Text (Text, pack, unpack)
 import Data.Typeable (Typeable)
 import Language.Eval (Eval, eval)
 
-import Parser.Core (TokenParser, consumeEverything, lexeme, parse, select,
-                    runTokenParser, withSep, withDefault, token)
-import Parser.JSON (Parser, punctuation)
+import Parser.Core (TokenParser, parse, select, runTokenParser, withSep,
+                    withDefault, token)
 import Parser.Language (tokExpr)
 import Parser.Token (Token(..), tokenize)
 
-import Text.Megaparsec (chunk, option, sepBy, some, try)
-import Text.Megaparsec.Char (alphaNumChar)
 
 
 data Filter = Filter {
@@ -81,7 +77,7 @@ key = select nameOrNumber
   where
   nameOrNumber (Name n) = return n
   nameOrNumber (Num n)
-    | denominator n == 1 = return $ pack $ show n
+    | denominator n == 1 = return . pack . show $ numerator n
     | otherwise = tokFail $ SourceCode ("Key must be an integer, not "
                                         <> (pack $ show n) <> ".")
   nameOrNumber t = tokFail $ SourceCode ("Invalid key: '"
