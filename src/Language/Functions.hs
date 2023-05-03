@@ -1,30 +1,30 @@
-{-# LANGUAGE GADTs, OverloadedStrings, RankNTypes #-}
-module Language.Functions (
-  Functions(..),
-  keysAst,
-  arrayMap,
-  arrayFilter,
-  optionMap,
-  numNeg,
-  numRecip,
-  numPlus,
-  numMult,
-  minus,
-  divide,
-  strConcat,
-  eq,
-  cmp,
-  jand,
-  jor,
-  jnot,
-  jIsNull,
-  jUnique,
-  jListFlatten,
-  jtry,
-  structSize,
-  arrayReduce,
-  objUnion
-) where
+{-# LANGUAGE GADTs, OverloadedStrings #-}
+module Language.Functions
+  ( Functions(..)
+  , keysAst
+  , arrayMap
+  , arrayFilter
+  , optionMap
+  , numNeg
+  , numRecip
+  , numPlus
+  , numMult
+  , minus
+  , divide
+  , strConcat
+  , eq
+  , cmp
+  , jand
+  , jor
+  , jnot
+  , jIsNull
+  , jUnique
+  , jListFlatten
+  , jtry
+  , structSize
+  , arrayReduce
+  , objUnion
+  ) where
 
 import Control.Monad (filterM, foldM, (>=>))
 import Control.Monad.Catch (MonadThrow(..))
@@ -201,7 +201,6 @@ unitypedBinop checkType op constr l r = do
   a <- checkType l
   b <- checkType r
   return . constr $ op a b
-
 
 instance Functions (Repr j) where
   identity = Repr $ return "id"
