@@ -5,6 +5,7 @@ module Parser.Language
 
 import Control.Applicative (Alternative(..))
 
+import Data.JSON (JSON)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Ratio (numerator, denominator)
@@ -34,7 +35,7 @@ tokParentheses expr = do
     token $ Sym ")"
     return e
 
-tokFunction :: (Monad m, Functions j) => TokenParser Token m j -> TokenParser Token m j
+tokFunction :: (Monad m, JSON j, Functions j) => TokenParser Token m j -> TokenParser Token m j
 tokFunction arg = select fun
   where
   fun (Name n) = case Map.lookup n tokFunctions of
@@ -42,7 +43,7 @@ tokFunction arg = select fun
     Just p -> p arg
   fun t = tokFail $ UnexpectedToken t "a function name"
 
-tokOperator :: (Monad m, Functions j) => TokenParser Token m j -> TokenParser Token m j
+tokOperator :: (Monad m, JSON j, Functions j) => TokenParser Token m j -> TokenParser Token m j
 tokOperator subExpr = foldr parseOp subExpr tokOperators
   where
   parseOp (symbol, f) expr = do
@@ -108,7 +109,7 @@ indexToken n
   | denominator n == 1 = return . fromInteger $ numerator n
   | otherwise = tokFail . InvalidIndex $ Num n
 
-tokFunctions :: (Monad m, Functions j) => Map Text (TokenParser t m j -> TokenParser t m j)
+tokFunctions :: (Monad m, JSON j, Functions j) => Map Text (TokenParser t m j -> TokenParser t m j)
 tokFunctions = Map.fromList [ ("id", const $ return Functions.identity)
                             , ("keys", fun Functions.keys)
                             , ("compose", fun2 Functions.compose)
@@ -141,7 +142,7 @@ tokFunctions = Map.fromList [ ("id", const $ return Functions.identity)
   fun f arg = f <$> arg
   fun2 f arg = f <$> arg <*> arg
 
-tokOperators :: Functions j => [(Text, (j -> j -> j))]
+tokOperators :: (JSON j, Functions j) => [(Text, (j -> j -> j))]
 tokOperators = [ ("|", Functions.compose)
                , ("?", Functions.optMap)
                , ("&&", Functions.and)

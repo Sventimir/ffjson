@@ -1,6 +1,7 @@
-{-# LANGUAGE GADTs, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TypeFamilies #-}
 module Language.Functions
-  ( Functions(..)
+  ( Apply(..)
+  , Functions(..)
   , keysAst
   , arrayMap
   , arrayFilter
@@ -13,11 +14,15 @@ module Language.Functions
   , divide
   , strConcat
   , eq
-  , cmp
+  , lt
+  , gt
+  , lte
+  , gte
   , jand
   , jor
   , jnot
   , jIsNull
+  , jDefault
   , jUnique
   , jListFlatten
   , jtry
@@ -35,10 +40,17 @@ import Data.JSON (JSON(..))
 import Data.JSON.Repr (Repr(..))
 import Data.JSON.AST (JsonAst(..), TypeError(..), ValueError(..), expectBool,
                       expectNumber, expectString, expectArray, expectObject,
-                      toJSON, cmpr)
+                      toJSON)
 import qualified Data.Text as Text
 
-class Functions j where
+import Language.Syntax (Syntax(..))
+
+
+class Apply a where
+  data Fun a arg ret
+  fun :: Text.Text -> (arg -> ret) -> Fun a arg ret
+
+class (Syntax j, Apply j) => Functions j where
   identity :: j
   compose :: j -> j -> j
   keys :: j -> j
@@ -59,12 +71,7 @@ class Functions j where
   mult :: j -> j -> j
   concat :: j -> j -> j
   equal :: j -> j -> j
-  -- It would be nice perhaps to squash these into a generic compare,
-  -- but it's not obvious, how to do it.
-  lt :: j -> j -> j
-  lte :: j -> j -> j
-  gt :: j -> j -> j
-  gte :: j -> j -> j
+  cmp :: (Fun j Ordering Bool) -> j -> j -> j
   or :: j -> j -> j
   and :: j -> j -> j
   not :: j -> j
@@ -153,9 +160,6 @@ strConcat = unitypedBinop expectString Text.append str
 eq :: JsonF2
 eq l r = return . bool $ hash (toJSON l) == hash (toJSON r)
 
-cmp :: [Ordering] -> JsonF2
-cmp ords l r = bool . flip any ords . (==) <$> cmpr l r
-
 jnot :: JsonF
 jnot j = JBool . Prelude.not <$> expectBool j
 
@@ -168,6 +172,10 @@ jor = unitypedBinop expectBool (||) bool
 jIsNull :: JsonF
 jIsNull JNull = return $ bool True
 jIsNull _ = return $ bool False
+
+jDefault :: JsonF2
+jDefault dflt JNull = return dflt
+jDefault _ v = return v
 
 jListFlatten :: JsonF
 jListFlatten j = do
@@ -196,11 +204,22 @@ jtry f json = case runEitherTrace $ f json of
   Right j -> return j
   Left _ -> return JNull
 
+-- Equal does not fail on type mismatch, but returns false instead.
+lt, lte, gt, gte :: (JSON j, Functions j) => j -> j -> j
+lt = cmp $ fun "<" (== LT)
+gt = cmp $ fun ">" (== GT)
+lte = cmp $ fun "<=" (/= GT)
+gte = cmp $ fun ">=" (/= LT)
+
 unitypedBinop :: (JsonAst -> EitherTrace a) -> (a -> a -> a) -> (a -> JsonAst) ->JsonF2
 unitypedBinop checkType op constr l r = do
   a <- checkType l
   b <- checkType r
   return . constr $ op a b
+
+instance Apply (Repr j) where
+  data Fun (Repr j) a r = ReprF Text.Text (a -> r)
+  fun = ReprF
 
 instance Functions (Repr j) where
   identity = Repr $ return "id"
@@ -226,10 +245,8 @@ instance Functions (Repr j) where
   mult (Repr l) (Repr r) = Repr $ l <> " * " <> r
   concat (Repr l) (Repr r) = Repr $ l <> " <> " <> r
   equal (Repr l) (Repr r) = Repr $ l <> " = " <> r
-  lt (Repr l) (Repr r) = Repr $ l <> " < " <> r
-  lte (Repr l) (Repr r) = Repr $ l <> " <= " <> r
-  gt (Repr l) (Repr r) = Repr $ l <> " > " <> r
-  gte (Repr l) (Repr r) = Repr $ l <> " >= " <> r
+  cmp (ReprF n _) (Repr l) (Repr r) = Repr $ "compare(" <> return n
+                                          <> l <> ") (" <> r <> ")"
   and (Repr l) (Repr r) = Repr $ l <> " && " <> r
   or (Repr l) (Repr r) = Repr $ l <> " || " <> r
   not (Repr j) = Repr $ "not" <> j

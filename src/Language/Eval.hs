@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, TypeFamilies #-}
 module Language.Eval (
   Eval,
   eval,
@@ -9,8 +9,8 @@ import Prelude hiding (null)
 import Control.Monad ((>=>))
 import Data.Error.Trace (EitherTrace)
 import Data.JSON (JSON(..))
-import Data.JSON.AST (JsonAst)
-import Language.Functions (Functions(..))
+import Data.JSON.AST (JsonAst, cmpr)
+import Language.Functions (Apply(..), Functions(..))
 import qualified Language.Functions as Fun
 import Language.Syntax (Syntax(..), getAst, indexAst, sliceAst, ifThenElseAst)
 
@@ -39,6 +39,10 @@ instance Syntax Eval where
   ifThenElse (Eval cond) (Eval ifSo) (Eval ifNot) =
     Eval $ ifThenElseAst cond ifSo ifNot
 
+instance Apply Eval where
+  data Fun Eval a r = EvalF (a -> r)
+  fun _ = EvalF
+
 instance Functions Eval where
   identity = Eval return
   compose (Eval l) (Eval r) = Eval (l >=> r)
@@ -60,10 +64,10 @@ instance Functions Eval where
   mult = binop Fun.numMult
   concat = binop Fun.strConcat
   equal = binop Fun.eq
-  lt = binop (Fun.cmp [LT])
-  lte = binop (Fun.cmp [LT, EQ])
-  gt = binop (Fun.cmp [GT])
-  gte = binop (Fun.cmp [GT, EQ])
+  cmp (EvalF f) (Eval l) (Eval r) = Eval $ \j -> do
+    a <- l j
+    b <- r j
+    bool . f <$> cmpr a b
   and = binop Fun.jand
   or = binop Fun.jor
   not = uniop Fun.jnot
