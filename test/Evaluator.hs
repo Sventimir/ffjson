@@ -172,6 +172,8 @@ evalTests = do
       "if .a then .b else .c" `appliedTo` "{\"a\": false, \"c\": 2}" `shouldReturn` num 2
     it "Operators and functions can be used at will inside conditionals." $
       "if size (keys .a) > 0 then .b + 1 else .b - 1" `appliedTo` "{\"a\": {}, \"b\": 3}" `shouldReturn` num 2
+    it "If after a composition operator parses well." $
+      ".abc | if .a > 0 then .b else .c" `appliedTo` "{\"abc\": {\"a\": 1, \"b\": 2, \"c\": 3}}" `shouldReturn` num 2
   describe "Test array slicing." $ do
     it "When only a colon is present, whole list is taken." $
       ".[:]" `appliedTo` "[0, 1, 2, 3]" `shouldReturn` array [num 0, num 1, num 2, num 3]

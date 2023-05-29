@@ -23,9 +23,9 @@ import qualified Parser.JSON as JsonParser
 
 
 tokExpr :: (Monad m, Syntax j, Functions j) => TokenParser Token m j
-tokExpr = tokConditional tokExpr <|> tokOperator funArg
+tokExpr = tokOperator funArg
   where
-  funArg = tokGetter <|> tokFunction funArg
+  funArg = tokGetter <|> tokFunction funArg <|> tokConditional tokExpr
        <|> JsonParser.tokJSON tokExpr <|> tokParentheses tokExpr
 
 tokParentheses :: Monad m => TokenParser Token m j -> TokenParser Token m j
