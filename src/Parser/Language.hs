@@ -18,7 +18,7 @@ import qualified Language.Functions as Functions
 
 import Parser.Core (TokenParser, TokParseError(..), currentToken,
                     select, token, tokFail, optional)
-import Parser.Token (Token(..))
+import Parser.Token (Getter(..), Token(..))
 import qualified Parser.JSON as JsonParser
 
 
@@ -63,51 +63,19 @@ tokConditional expr = do
   Syntax.ifThenElse cond ifSo <$> expr
 
 tokGetter :: (Monad m, Syntax j, Functions j) => TokenParser Token m j
-tokGetter = do
-  expr <- (many $ do
-            token (Sym ".")
-            select variant)
-  case expr of
-    [] -> tokFail Empty
-    e : es -> return $ foldl Functions.compose e es
+tokGetter = select getter
   where
-  variant (Str prop) = return $ Syntax.get prop
-  variant (Name prop) = return $ Syntax.get prop
-  variant (Sym "[") = indexOrSlice
-  variant t = tokFail $ UnexpectedToken t "a property, index or slice"
-
-indexOrSlice :: (Monad m, Syntax j) => TokenParser Token m j
-indexOrSlice = do
-  idx1 <- optional index
-  c <- optional colon
-  case (idx1, c) of
-    (Nothing, Nothing) -> currentToken >>= (tokFail . InvalidIndex)
-    (Just i, Nothing) -> do
-      endSlice
-      return $ Syntax.index i
-    (_, Just ()) -> do
-      idx2 <- optional index
-      idx3 <- optional $ do
-        colon
-        index
-      endSlice
-      return . Syntax.slice $ Syntax.ArraySlice idx1 idx2 idx3
-
-  where
-  colon = token (Sym ":")
-  endSlice = token (Sym "]")
-
-index :: Monad m => TokenParser Token m Int
-index = select number
-  where
-  number (Num n) = indexToken n
-  number (Sym "-") = negate <$> index
-  number t = tokFail $ UnexpectedToken t "an integer"
-
-indexToken :: Monad m => Rational -> TokenParser Token m Int
-indexToken n
-  | denominator n == 1 = return . fromInteger $ numerator n
-  | otherwise = tokFail . InvalidIndex $ Num n
+  getter (Getter g) = return $ mkGetter g
+  getter t = tokFail $ UnexpectedToken t "a getter"
+  mkGetter :: (Syntax j, Functions j) => Getter -> j
+  mkGetter (ArrayGetter i Nothing) = Syntax.index i
+  mkGetter (ArrayGetter i (Just g)) = Syntax.index i `Functions.compose` mkGetter g
+  mkGetter (ArraySlice (f, l, s) Nothing) =
+    Syntax.slice $ Syntax.ArraySlice f l s
+  mkGetter (ArraySlice (f, l, s) (Just g)) =
+    (Syntax.slice $ Syntax.ArraySlice f l s) `Functions.compose` mkGetter g
+  mkGetter (ObjectGetter k Nothing) = Syntax.get k
+  mkGetter (ObjectGetter k (Just g)) = Syntax.get k `Functions.compose` mkGetter g
 
 tokFunctions :: (Monad m, JSON j, Functions j) => Map Text (TokenParser t m j -> TokenParser t m j)
 tokFunctions = Map.fromList [ ("id", const $ return Functions.identity)

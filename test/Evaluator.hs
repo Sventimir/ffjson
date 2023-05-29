@@ -51,9 +51,11 @@ evalTests = do
       ".[0]" `appliedTo` "{}" `shouldThrow` notAnArray (obj [])
     it "Get from array by negative index counts elements from the end of the array." $
       ".[-1]" `appliedTo` "[1, 2, 3]" `shouldReturn` num 3
-  describe "Array and objects getters compose together." $
+  describe "Array and objects getters compose together." $ do
     it "Compose array and object getter." $
       ".a.[0].b" `appliedTo` "{\"a\": [{\"b\": true}, 1], \"z\": null}" `shouldReturn` bool True
+    it "Array and object getters don't compose if separated by spaces." $
+      ".a .[0] .b" `appliedTo` "{\"a\": [{\"b\": true}, 1], \"z\": null}" `shouldThrow` parseError
   describe "Test `keys` function in isolation" $ do
     it "`keys` returns a list a of keys of an object." $
       "keys id" `appliedTo` "{}" `shouldReturn` array []
@@ -72,13 +74,13 @@ evalTests = do
     it "Parentheses separate sub-expressions too." $
       "(.[0] | .x) | keys id" `appliedTo` "[{\"x\": {}}]" `shouldReturn` array []
     it "Parentheses can be nested" $
-      "(.x.a) | ((keys id) | (.[0]))" `appliedTo` "{\"x\": {\"a\": {\"z\": 123}}}"
+      ".x.a | ((keys id) | .[0])" `appliedTo` "{\"x\": {\"a\": {\"z\": 123}}}"
         `shouldReturn` str "z"
     it "A failure inside parentheses also causes an error" $
       "(keys)" `appliedTo` "{}" `shouldThrow` parseError
   describe "Test syntax in conjunction with standard JSON." $ do
     it "Complex expressions in dictionary." $
-      "{\"a\": keys .x, \"b\": (.y | .[0])}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
+      "{\"a\": keys .x, \"b\": .y | .[0]}" `appliedTo` "{\"x\": {}, \"y\": [1]}"
         `shouldReturn` obj [("a", array []), ("b", num 1)]
   describe "Test arithmetic" $ do
     it "Add two properties of an object." $
@@ -101,7 +103,7 @@ evalTests = do
     it "Function calls compose with getters." $
       "plus .a 1" `appliedTo` "{\"a\": 2}" `shouldReturn` num 3
     it "Function called with two getters also works." $
-      "mult (.[0]) .[1]" `appliedTo` "[2, 5]" `shouldReturn` num 10
+      "mult .[0] .[1]" `appliedTo` "[2, 5]" `shouldReturn` num 10
   describe "Test order of arithmetic operations." $ do
     it "By default operations are evaluated in the order of appearance." $
       "1 + 2 - 3 + 4" `appliedTo` "[]" `shouldReturn` num 4
@@ -112,7 +114,7 @@ evalTests = do
     it "Function call binds more strongly than operators." $
       "mult (.[0]) .[1] + mult (.[2]) .[3]" `appliedTo` "[2, 3, 4, 5]" `shouldReturn` num 26
     it "Function call can be an operator's argument." $
-      "plus (.a) .b * minus (.a) .b" `appliedTo` "{\"a\": 5, \"b\": 2}" `shouldReturn` num 21
+      "plus .a .b * minus (.a) .b" `appliedTo` "{\"a\": 5, \"b\": 2}" `shouldReturn` num 21
     it "Parentheses bind more strongly than anything else." $
       "mult (.a + .b) 3" `appliedTo` "{\"a\": 1, \"b\": 3}" `shouldReturn` num 12
     it "If statements bind the least strongly." $
